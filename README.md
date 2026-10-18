@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# پنل Onvioo
 
-## Getting Started
+پنل مدیریت محتوا، مشتریان و تیم Onvioo. نقشه کامل و فازبندی در [سند نیازمندی‌ها](https://claude.ai/code/artifact/e0a70a3d-45c9-4c11-ac2a-045646aedfca) است.
 
-First, run the development server:
+## فاز ۰ (پایه) شامل چه چیزهایی است
+
+- ورود با **کد پیامکی** (کاوه‌نگار) یا **رمز عبور**، با سه نقش: مدیر، کارمند و مشتری
+- **مشتریان:** ثبت، ویرایش، وضعیت همکاری و ساختن دسترسی پرتال برای مشتری
+- **کارکنان:** افزودن عضو تیم با سمت و نوع حقوق (ماهانه، ساعتی، به‌ازای هر کار)، فعال و غیرفعال کردن
+- **فایل‌ها:** آپلود مستقیم ریلز و استوری به فضای ابری S3 (مثل آروان) تا ۵ گیگابایت، با نوار پیشرفت و دانلود امن
+- **داشبورد:** مشتری‌های فعال، اعضای تیم و فایل‌های ماه جاری (ماه شمسی)
+- **پرتال مشتری:** صفحه ورود جدا برای مشتری (امکاناتش در فاز ۲ اضافه می‌شود)
+- ظاهر فارسی راست‌به‌چپ، تاریخ شمسی، تم روشن و تیره، و نصب روی گوشی مثل اپ (PWA)
+- ثبت همه تغییرات مهم در جدول `audit_log`
+
+## تکنولوژی
+
+Next.js 16 (App Router, Server Actions) · TypeScript · Tailwind CSS 4 · PostgreSQL + Drizzle ORM · S3-compatible storage · Vitest
+
+## اجرای محلی
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+cp .env.example .env.local        # DATABASE_URL and, optionally, S3 / Kavenegar
+pnpm db:migrate
+pnpm create-admin "نام" 09120000000 "a-strong-password"
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Without Kavenegar keys in development, login codes are printed to the server log. To do the same under `next start`, set `SMS_DRIVER=log`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## اجرا روی سرور با Docker
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+cp .env.example .env              # fill in S3 and Kavenegar values
+docker compose up -d --build      # starts PostgreSQL, runs migrations, starts the panel on :3000
+docker compose run --rm migrate node node_modules/tsx/dist/cli.mjs scripts/create-admin.mts "نام" 09120000000 "a-strong-password"
+```
 
-## Learn More
+Put a reverse proxy with HTTPS (e.g. Caddy or Nginx) in front of port 3000. The bucket needs a CORS rule that allows `PUT` from the panel's domain so browsers can upload directly.
 
-To learn more about Next.js, take a look at the following resources:
+## دستورها
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Command | What it does |
+| --- | --- |
+| `pnpm dev` | Development server |
+| `pnpm build` / `pnpm start` | Production build and server |
+| `pnpm lint` / `pnpm typecheck` / `pnpm test` | Checks (also run in CI) |
+| `pnpm db:generate` | Create a migration after changing `src/db/schema.ts` |
+| `pnpm db:migrate` | Apply migrations |
+| `pnpm create-admin` | Create or promote an admin user |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## ساختار
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+  app/
+    login/            ورود (رمز و کد پیامکی)
+    (panel)/          پنل تیم: dashboard, clients, staff, files
+    portal/           پرتال مشتری
+  db/schema.ts        جدول‌های دیتابیس
+  lib/auth/           نشست، کد یکبارمصرف، نقش‌ها
+  lib/format.ts       تاریخ شمسی، اعداد فارسی، شماره موبایل
+  lib/storage.ts      آپلود و دانلود از S3
+  proxy.ts            هدایت کاربران واردنشده به صفحه ورود
+```
