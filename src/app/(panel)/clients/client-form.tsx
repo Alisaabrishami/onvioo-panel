@@ -1,10 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
 import { Button, Field, Input, Select, Textarea } from "@/components/ui";
 import type { ClientStatus } from "@/db/schema";
 import { CLIENT_STATUS_LABELS } from "./labels";
 import type { FormState } from "./actions";
+import { useFormAction } from "@/lib/use-form-action";
 
 type ClientValues = {
   name: string;
@@ -24,13 +24,13 @@ export function ClientForm({
   initial?: ClientValues;
   submitLabel: string;
 }) {
-  const [state, formAction, pending] = useActionState(action, {});
+  const [state, formAction, pending] = useFormAction(action);
   const e = state.errors ?? {};
   // After a failed submit, show what was typed instead of the saved values
   const v = (field: keyof ClientValues) => state.values?.[field] ?? initial?.[field] ?? "";
 
   return (
-    <form action={formAction} className="grid gap-4 sm:grid-cols-2">
+    <form key={state.at} action={formAction} className="grid gap-4 sm:grid-cols-2">
       <Field label="نام مشتری" htmlFor="name" error={e.name}>
         <Input id="name" name="name" defaultValue={v("name")} required />
       </Field>

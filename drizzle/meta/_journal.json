@@ -8,6 +8,13 @@
       "when": 1792364653213,
       "tag": "0000_smooth_moon_knight",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792425993233,
+      "tag": "0001_sticky_machine_man",
+      "breakpoints": true
     }
   ]
 }

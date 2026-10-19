@@ -22,16 +22,23 @@ function putWithProgress(url: string, file: File, onProgress: (p: number) => voi
   });
 }
 
+const KIND_LABELS = { raw: "فایل خام", edit: "نسخه تدوین‌شده", cover: "کاور", other: "سایر" } as const;
+type Kind = keyof typeof KIND_LABELS;
+
 export function Uploader({
   clients,
   fixedClientId,
+  contentId,
 }: {
   clients?: { id: string; name: string }[];
   fixedClientId?: string;
+  // Uploading inside a content item: files are tagged with it and a kind
+  contentId?: string;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [clientId, setClientId] = useState(fixedClientId ?? "");
+  const [kind, setKind] = useState<Kind>("edit");
   const [items, setItems] = useState<Item[]>([]);
   const [dragging, setDragging] = useState(false);
 
@@ -46,6 +53,7 @@ export function Uploader({
       size: file.size,
       mime: file.type || "application/octet-stream",
       clientId: clientId || null,
+      ...(contentId && { contentId, kind }),
     };
     const ticket = await startUpload(meta);
     if (!ticket.ok) return update(id, { error: ticket.error });
@@ -65,6 +73,15 @@ export function Uploader({
 
   return (
     <div className="space-y-3">
+      {contentId && (
+        <Select value={kind} onChange={(e) => setKind(e.target.value as Kind)} aria-label="نوع فایل">
+          {Object.entries(KIND_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </Select>
+      )}
       {clients && (
         <Select value={clientId} onChange={(e) => setClientId(e.target.value)} aria-label="مشتری">
           <option value="">بدون مشتری (فایل عمومی)</option>
