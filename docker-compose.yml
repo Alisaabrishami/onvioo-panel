@@ -1,0 +1,42 @@
+# Local or single-server setup: PostgreSQL + the panel.
+# Files go to an external S3-compatible bucket configured in .env.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: onvioo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-onvioo}
+      POSTGRES_DB: onvioo
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U onvioo"]
+      interval: 5s
+      retries: 10
+
+  migrate:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://onvioo:${POSTGRES_PASSWORD:-onvioo}@db:5432/onvioo
+    working_dir: /tools
+    command: ["node", "node_modules/tsx/dist/cli.mjs", "scripts/migrate.mts"]
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://onvioo:${POSTGRES_PASSWORD:-onvioo}@db:5432/onvioo
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
