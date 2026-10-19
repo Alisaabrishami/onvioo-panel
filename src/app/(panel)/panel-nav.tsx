@@ -1,6 +1,6 @@
 "use client";
 
-import { FolderUp, LayoutDashboard, LogOut, Users, UserCog } from "lucide-react";
+import { CalendarDays, Camera, Clapperboard, FolderUp, LayoutDashboard, ListTodo, LogOut, Users, UserCog } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Role } from "@/db/schema";
@@ -10,6 +10,10 @@ import { cn } from "@/lib/utils";
 
 const ITEMS = [
   { href: "/dashboard", label: "داشبورد", icon: LayoutDashboard, roles: ["admin", "staff"] },
+  { href: "/content", label: "محتوا", icon: Clapperboard, roles: ["admin", "staff"] },
+  { href: "/calendar", label: "تقویم", icon: CalendarDays, roles: ["admin", "staff"] },
+  { href: "/tasks", label: "کارها", icon: ListTodo, roles: ["admin", "staff"] },
+  { href: "/shoots", label: "جلسه‌های ضبط", icon: Camera, roles: ["admin", "staff"] },
   { href: "/clients", label: "مشتریان", icon: Users, roles: ["admin", "staff"] },
   { href: "/files", label: "فایل‌ها", icon: FolderUp, roles: ["admin", "staff"] },
   { href: "/staff", label: "کارکنان", icon: UserCog, roles: ["admin"] },

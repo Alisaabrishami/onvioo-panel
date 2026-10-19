@@ -1,6 +1,6 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq, max } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
 import { db, schema } from "@/db";
@@ -16,6 +16,8 @@ const uploadSchema = z.object({
   size: z.number().int().positive().max(MAX_SIZE),
   mime: z.string().min(1).max(255),
   clientId: z.uuid().nullable(),
+  contentId: z.uuid().nullable().optional(),
+  kind: z.enum(schema.fileKindEnum.enumValues).optional(),
 });
 
 export type UploadTicket =
@@ -50,12 +52,23 @@ export async function completeUpload(
   const parsed = uploadSchema.extend({ key: z.string().min(1) }).safeParse(input);
   if (!parsed.success) return { ok: false };
 
+  const { contentId, kind = "other" } = parsed.data;
+  let version: number | null = null;
+  if (contentId && kind === "edit") {
+    // Each new edit of a content item is the next version: v1, v2…
+    const [row] = await db
+      .select({ max: max(schema.files.version) })
+      .from(schema.files)
+      .where(and(eq(schema.files.contentId, contentId), eq(schema.files.kind, "edit")));
+    version = (row?.max ?? 0) + 1;
+  }
   const [file] = await db
     .insert(schema.files)
-    .values({ ...parsed.data, uploadedBy: user.id })
+    .values({ ...parsed.data, kind, version, uploadedBy: user.id })
     .returning({ id: schema.files.id });
   await audit(user.id, "upload", "file", file.id, { name: parsed.data.name });
   revalidatePath("/files");
   if (parsed.data.clientId) revalidatePath(`/clients/${parsed.data.clientId}`);
+  if (contentId) revalidatePath(`/content/${contentId}`);
   return { ok: true };
 }

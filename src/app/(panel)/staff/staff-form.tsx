@@ -1,22 +1,17 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
 import { Button, Field, Input, Select } from "@/components/ui";
-import { createStaff, type FormState } from "./actions";
+import { useFormAction } from "@/lib/use-form-action";
+import { createStaff } from "./actions";
 import { PAY_TYPE_LABELS } from "./labels";
 
 export function StaffForm() {
-  const [state, action, pending] = useActionState<FormState, FormData>(createStaff, {});
-  const formRef = useRef<HTMLFormElement>(null);
+  const [state, action, pending] = useFormAction(createStaff);
   const e = state.errors ?? {};
   const v = state.values ?? {};
 
-  useEffect(() => {
-    if (state.ok) formRef.current?.reset();
-  }, [state]);
-
   return (
-    <form ref={formRef} action={action} className="space-y-3">
+    <form key={state.at} action={action} className="space-y-3">
       <Field label="نام" htmlFor="name" error={e.name}>
         <Input id="name" name="name" defaultValue={v.name} required />
       </Field>
