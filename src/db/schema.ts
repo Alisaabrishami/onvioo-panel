@@ -670,3 +670,157 @@ export const bankLines = pgTable(
     index("bank_lines_account_day_idx").on(t.accountId, t.day),
   ],
 );
+
+// --- Phase 5: invoices, CRM, site monitoring ------------------------------
+
+export const invoiceStatusEnum = pgEnum("invoice_status", ["draft", "sent", "paid", "cancelled"]);
+export const paymentStatusEnum = pgEnum("payment_status", ["pending", "paid", "failed"]);
+export const leadStageEnum = pgEnum("lead_stage", ["new", "contacted", "meeting", "proposal", "won", "lost"]);
+export const leadSourceEnum = pgEnum("lead_source", ["instagram", "referral", "website", "ads", "other"]);
+export const activityKindEnum = pgEnum("activity_kind", ["note", "call", "message", "meeting", "stage"]);
+
+export type InvoiceStatus = (typeof invoiceStatusEnum.enumValues)[number];
+export type LeadStage = (typeof leadStageEnum.enumValues)[number];
+export type LeadSource = (typeof leadSourceEnum.enumValues)[number];
+export type ActivityKind = (typeof activityKindEnum.enumValues)[number];
+export type InvoiceItem = { title: string; qty: number; unitPrice: number };
+
+export const invoices = pgTable(
+  "invoices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    // Shown on the invoice, e.g. ۱۰۲۴
+    number: integer("number").generatedAlwaysAsIdentity({ startWith: 1001 }),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "restrict" }),
+    contractId: uuid("contract_id").references(() => contracts.id, { onDelete: "set null" }),
+    title: text("title").notNull(),
+    items: jsonb("items").$type<InvoiceItem[]>().notNull(),
+    discount: bigint("discount", { mode: "number" }).notNull().default(0),
+    // Basis points of VAT, e.g. 1000 = 10%
+    taxBp: integer("tax_bp").notNull().default(0),
+    total: bigint("total", { mode: "number" }).notNull(),
+    issuedOn: date("issued_on").notNull(),
+    dueOn: date("due_on"),
+    status: invoiceStatusEnum("status").notNull().default("draft"),
+    note: text("note"),
+    // Unguessable link the client can pay from without logging in
+    payToken: text("pay_token").notNull(),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    remindedAt: timestamp("reminded_at", { withTimezone: true }),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    transactionId: uuid("transaction_id").references(() => transactions.id, { onDelete: "set null" }),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("invoices_client_idx").on(t.clientId), uniqueIndex("invoices_token_idx").on(t.payToken)],
+);
+
+// One attempt to pay an invoice online
+export const invoicePayments = pgTable(
+  "invoice_payments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    invoiceId: uuid("invoice_id")
+      .notNull()
+      .references(() => invoices.id, { onDelete: "cascade" }),
+    gateway: text("gateway").notNull(),
+    amount: bigint("amount", { mode: "number" }).notNull(),
+    authority: text("authority"),
+    refId: text("ref_id"),
+    cardPan: text("card_pan"),
+    status: paymentStatusEnum("status").notNull().default("pending"),
+    error: text("error"),
+    createdAt: createdAt(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (t) => [index("invoice_payments_invoice_idx").on(t.invoiceId), uniqueIndex("invoice_payments_authority_idx").on(t.authority)],
+);
+
+// Panel-wide settings, one row per key
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const leads = pgTable(
+  "leads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    business: text("business"),
+    phone: text("phone"),
+    instagram: text("instagram"),
+    source: leadSourceEnum("source").notNull().default("instagram"),
+    stage: leadStageEnum("stage").notNull().default("new"),
+    // Expected monthly deal size in toman
+    value: bigint("value", { mode: "number" }),
+    services: text("services"),
+    ownerId: uuid("owner_id").references(() => users.id, { onDelete: "set null" }),
+    nextFollowUp: date("next_follow_up"),
+    lostReason: text("lost_reason"),
+    clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("leads_stage_idx").on(t.stage), index("leads_follow_up_idx").on(t.nextFollowUp)],
+);
+
+export const leadActivities = pgTable(
+  "lead_activities",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    leadId: uuid("lead_id")
+      .notNull()
+      .references(() => leads.id, { onDelete: "cascade" }),
+    kind: activityKindEnum("kind").notNull(),
+    body: text("body").notNull(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("lead_activities_lead_idx").on(t.leadId, t.createdAt)],
+);
+
+// A client website the panel checks every few minutes
+export const monitors = pgTable(
+  "monitors",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+    url: text("url").notNull(),
+    // Text the page must contain, so a blank or hacked page counts as down
+    keyword: text("keyword"),
+    active: boolean("active").notNull().default(true),
+    up: boolean("up"),
+    lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
+    lastMs: integer("last_ms"),
+    downSince: timestamp("down_since", { withTimezone: true }),
+    sslExpiresAt: timestamp("ssl_expires_at", { withTimezone: true }),
+    domainExpiresOn: date("domain_expires_on"),
+    sslWarnedAt: timestamp("ssl_warned_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("monitors_client_idx").on(t.clientId)],
+);
+
+export const monitorChecks = pgTable(
+  "monitor_checks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    monitorId: uuid("monitor_id")
+      .notNull()
+      .references(() => monitors.id, { onDelete: "cascade" }),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+    ok: boolean("ok").notNull(),
+    status: integer("status"),
+    ms: integer("ms"),
+    error: text("error"),
+  },
+  (t) => [index("monitor_checks_monitor_idx").on(t.monitorId, t.at)],
+);

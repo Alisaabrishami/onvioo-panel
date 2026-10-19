@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Clapperboard, FileSignature, Globe, Home, LifeBuoy, TrendingUp } from "lucide-react";
+import { Bell, Clapperboard, FileSignature, Globe, Home, LifeBuoy, Receipt, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { toPersianDigits } from "@/lib/format";
@@ -13,6 +13,7 @@ const ITEMS = [
   { href: "/portal/projects", label: "سایت", icon: Globe },
   { href: "/portal/tickets", label: "پشتیبانی", icon: LifeBuoy },
   { href: "/portal/contracts", label: "قراردادها", icon: FileSignature },
+  { href: "/portal/invoices", label: "فاکتورها", icon: Receipt },
 ];
 
 export function PortalNav({ unread }: { unread: number }) {
