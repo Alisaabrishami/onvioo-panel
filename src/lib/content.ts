@@ -1,3 +1,4 @@
+import { toLatinDigits, toPersianDigits } from "./format";
 import type { ContentStage, ContentType, TaskPriority, TaskStatus } from "@/db/schema";
 
 export const STAGES: readonly ContentStage[] = [
@@ -89,3 +90,16 @@ export function isOverdue(dueAt: Date | null, now = new Date()): boolean {
 }
 
 export const DEFAULT_CHECKLIST = "دوربین و لنز\nباتری و کارت حافظه\nمیکروفون یقه‌ای\nنور و سه‌پایه\nگیمبال";
+
+// "1:05" or "65" into seconds; null when empty, undefined when unreadable
+export function parseTimecode(text: string): number | null | undefined {
+  const t = toLatinDigits(text).trim();
+  if (!t) return null;
+  const m = t.match(/^(\d+):(\d{2})$/);
+  if (m) return Number(m[1]) * 60 + Number(m[2]);
+  return /^\d+$/.test(t) ? Number(t) : undefined;
+}
+
+export function formatTimecode(seconds: number): string {
+  return toPersianDigits(`${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`);
+}

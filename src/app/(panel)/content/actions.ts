@@ -9,9 +9,9 @@ import { audit } from "@/lib/audit";
 import { requireTeam } from "@/lib/auth/dal";
 import { type FormState, invalid, jalaliField, optionalJalali, optionalText, optionalUuid } from "@/lib/forms";
 import { isUuid } from "@/lib/data";
-import { toLatinDigits } from "@/lib/format";
 import { moveContentStage } from "@/lib/pipeline";
-import { REVIEW_TASK_KEY } from "@/lib/content";
+import { REVIEW_TASK_KEY, parseTimecode } from "@/lib/content";
+import { notifyClient } from "@/lib/notify";
 
 const contentSchema = z.object({
   title: z.string().trim().min(2, { error: "عنوان محتوا را وارد کنید" }),
@@ -105,15 +105,6 @@ export async function moveStage(contentId: string, stage: string): Promise<{ ok:
   return { ok };
 }
 
-// "1:05" or "65" (seconds) into seconds
-function parseTimecode(text: string): number | null | undefined {
-  const t = toLatinDigits(text).trim();
-  if (!t) return null;
-  const m = t.match(/^(?:(\d+):)?(\d{1,2})$/) ?? t.match(/^(\d+)$/);
-  if (!m) return undefined;
-  return m.length === 3 ? Number(m[1] ?? 0) * 60 + Number(m[2]) : Number(m[1]);
-}
-
 export async function addComment(contentId: string, _: FormState, formData: FormData): Promise<FormState> {
   const user = await requireTeam();
   const body = String(formData.get("body") ?? "").trim();
@@ -122,7 +113,17 @@ export async function addComment(contentId: string, _: FormState, formData: Form
   if (!body) return { errors: { body: ["متن نظر را بنویسید"] }, values };
   if (timecode === undefined) return { errors: { timecode: ["زمان را مثل ۱:۰۵ بنویسید"] }, values };
 
-  await db.insert(schema.contentComments).values({ contentId, userId: user.id, body, timecode });
+  const internal = formData.get("internal") === "on";
+  await db.insert(schema.contentComments).values({ contentId, userId: user.id, body, timecode, internal });
+  if (!internal) {
+    const [content] = await db
+      .select({ clientId: schema.contents.clientId, title: schema.contents.title })
+      .from(schema.contents)
+      .where(eq(schema.contents.id, contentId));
+    if (content) {
+      await notifyClient(content.clientId, { title: `نظر جدید روی «${content.title}»`, body, href: `/portal/content/${contentId}` });
+    }
+  }
   revalidatePath(`/content/${contentId}`);
   return { ok: true };
 }
