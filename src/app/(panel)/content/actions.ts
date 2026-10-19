@@ -11,6 +11,7 @@ import { type FormState, invalid, jalaliField, optionalJalali, optionalText, opt
 import { isUuid } from "@/lib/data";
 import { toLatinDigits } from "@/lib/format";
 import { moveContentStage } from "@/lib/pipeline";
+import { REVIEW_TASK_KEY } from "@/lib/content";
 
 const contentSchema = z.object({
   title: z.string().trim().min(2, { error: "عنوان محتوا را وارد کنید" }),
@@ -72,17 +73,20 @@ export async function updateContent(contentId: string, _: FormState, formData: F
       .update(schema.contents)
       .set({ ...parsed.data, updatedAt: new Date() })
       .where(eq(schema.contents.id, contentId));
-    // The open pipeline task follows the content to its new assignee and deadline
+    const openAuto = and(
+      eq(schema.tasks.contentId, contentId),
+      isNotNull(schema.tasks.autoKey),
+      ne(schema.tasks.status, "done"),
+    );
     await tx
       .update(schema.tasks)
-      .set({ assigneeId: parsed.data.assigneeId, dueAt: parsed.data.dueAt, clientId: parsed.data.clientId })
-      .where(
-        and(
-          eq(schema.tasks.contentId, contentId),
-          isNotNull(schema.tasks.autoKey),
-          ne(schema.tasks.status, "done"),
-        ),
-      );
+      .set({ dueAt: parsed.data.dueAt, clientId: parsed.data.clientId })
+      .where(openAuto);
+    // The open pipeline task follows the content to its new editor; review stays with the reviewer
+    await tx
+      .update(schema.tasks)
+      .set({ assigneeId: parsed.data.assigneeId })
+      .where(and(openAuto, ne(schema.tasks.autoKey, REVIEW_TASK_KEY)));
   });
   await audit(user.id, "update", "content", contentId, { title: parsed.data.title });
   revalidateContent(contentId);

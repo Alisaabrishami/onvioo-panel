@@ -1,8 +1,8 @@
 import "server-only";
-import { and, eq, isNotNull, ne } from "drizzle-orm";
+import { and, asc, eq, isNotNull, ne } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { ContentStage } from "@/db/schema";
-import { autoTaskFor } from "./content";
+import { REVIEW_TASK_KEY, autoTaskFor } from "./content";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -38,13 +38,24 @@ export async function moveContentStage(
         autoKey: auto.key,
         contentId,
         clientId: content.clientId,
-        assigneeId: content.assigneeId,
+        assigneeId: auto.key === REVIEW_TASK_KEY ? await reviewerId(tx, content.assigneeId) : content.assigneeId,
         dueAt: content.dueAt,
         createdBy: userId,
       });
     }
     return true;
   });
+}
+
+// The longest-standing active admin reviews; with no admin the editor does
+async function reviewerId(tx: Tx, fallback: string | null): Promise<string | null> {
+  const [admin] = await tx
+    .select({ id: schema.users.id })
+    .from(schema.users)
+    .where(and(eq(schema.users.role, "admin"), eq(schema.users.active, true)))
+    .orderBy(asc(schema.users.createdAt))
+    .limit(1);
+  return admin?.id ?? fallback;
 }
 
 async function closeStageTasks(tx: Tx, contentId: string) {

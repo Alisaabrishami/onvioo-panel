@@ -60,6 +60,10 @@ export const PRIORITY_TONES = {
 
 export type AutoTask = { key: string; title: string };
 
+// Internal review is done by the agency's admin, not by the editor whose
+// work is being reviewed
+export const REVIEW_TASK_KEY = "stage:internal_review";
+
 // Moving content into a stage where someone on the team has work to do
 // opens a task for the assignee; leaving that stage closes it.
 const STAGE_TASKS: Partial<Record<ContentStage, (title: string, again: boolean) => string>> = {
