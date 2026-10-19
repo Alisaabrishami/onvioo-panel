@@ -48,6 +48,13 @@
 0 8 * * 6  curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" https://panel.example.com/api/cron/weekly
 ```
 
+## دیزاین سیستم
+
+- تم **سرمه‌ای شیشه‌ای** (پیش‌فرض) و تم روشن با دکمه خورشید و ماه؛ انتخاب روی هر دستگاه ذخیره می‌شود
+- رنگ‌ها در `src/app/globals.css`: رنگ اصلی مرجانی، و پنج رنگ پاستلی `sand`، `coral`، `mint`، `sky` و `lilac` برای کارت‌ها و برچسب‌ها
+- اجزای مشترک در `src/components/ui.tsx`: دکمه، فیلد، کارت شیشه‌ای (`glass`)، `ToneCard`، `Badge`، `Stat`، `Segmented` و چیپ فیلتر؛ پیام شناور با «برگرداندن» در `src/components/toast.tsx`
+- انیمیشن‌ها: `animate-rise`، `animate-pop`، `stagger`، `skeleton`، `draw-line` برای نمودار و `animate-ring` برای زنگوله؛ با تنظیم «کاهش حرکت» سیستم خاموش می‌شوند
+
 ## تکنولوژی
 
 Next.js 16 (App Router, Server Actions) · TypeScript · Tailwind CSS 4 · PostgreSQL + Drizzle ORM · S3-compatible storage · Vitest

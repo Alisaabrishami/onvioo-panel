@@ -32,7 +32,7 @@ export default async function ContractsPage() {
         title="قراردادها"
         description="قرارداد دیجیتال با امضای پیامکی مشتری در پرتال"
         actions={
-          <Link href="/contracts/new" className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+          <Link href="/contracts/new" className="inline-flex h-10 items-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-glow transition-[filter,transform] hover:brightness-105 active:scale-[0.97]">
             <Plus className="size-4" />
             قرارداد جدید
           </Link>

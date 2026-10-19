@@ -43,7 +43,7 @@ export default async function TicketsPage(props: PageProps<"/tickets">) {
           <Link
             key={v.key}
             href={v.key === "open" ? "/tickets" : `/tickets?view=${v.key}`}
-            className={cn("rounded-lg px-3 py-1.5", v.key === view ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground hover:bg-muted")}
+            className={cn("rounded-full px-3.5 py-1.5", v.key === view ? "bg-primary font-medium text-primary-foreground shadow-glow" : "text-muted-foreground hover:bg-muted")}
           >
             {v.label}
           </Link>

@@ -17,7 +17,7 @@ export function LoginForm() {
 
   return (
     <div>
-      <div className="mb-6 grid grid-cols-2 gap-1 rounded-lg bg-muted p-1 text-sm">
+      <div className="mb-6 grid grid-cols-2 gap-1 rounded-full bg-muted p-1 text-sm">
         {(
           [
             ["otp", "کد پیامکی"],
@@ -29,8 +29,8 @@ export function LoginForm() {
             type="button"
             onClick={() => setMode(value)}
             className={cn(
-              "rounded-md py-2 font-medium transition-colors",
-              mode === value ? "bg-surface shadow-sm" : "text-muted-foreground",
+              "rounded-full py-2 font-medium transition-colors duration-200",
+              mode === value ? "bg-surface-raised shadow-card" : "text-muted-foreground",
             )}
           >
             {label}

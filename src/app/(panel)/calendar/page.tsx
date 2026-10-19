@@ -128,11 +128,11 @@ export default async function CalendarPage(props: PageProps<"/calendar">) {
         description="زمان انتشار محتواها و جلسه‌های ضبط در یک نگاه"
         actions={
           <div className="flex gap-2">
-            <Link href="/shoots/new" className="inline-flex h-10 items-center gap-2 rounded-lg border border-border px-3 text-sm hover:bg-muted">
+            <Link href="/shoots/new" className="inline-flex h-10 items-center gap-2 rounded-full border border-border px-3.5 text-sm hover:bg-muted">
               <Camera className="size-4" />
               جلسه ضبط
             </Link>
-            <Link href="/content/new" className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+            <Link href="/content/new" className="inline-flex h-10 items-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-glow transition-[filter,transform] hover:brightness-105 active:scale-[0.97]">
               <Plus className="size-4" />
               محتوا
             </Link>
@@ -141,13 +141,13 @@ export default async function CalendarPage(props: PageProps<"/calendar">) {
       />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-1">
-          <Link href={qs(prev)} className="rounded-lg p-2 hover:bg-muted" aria-label="ماه قبل">
+          <Link href={qs(prev)} className="rounded-xl p-2 hover:bg-muted" aria-label="ماه قبل">
             <ChevronRight className="size-5" />
           </Link>
           <h2 className="min-w-32 text-center text-lg font-semibold">
             {JALALI_MONTHS[month.jm - 1]} {toPersianDigits(month.jy)}
           </h2>
-          <Link href={qs(next)} className="rounded-lg p-2 hover:bg-muted" aria-label="ماه بعد">
+          <Link href={qs(next)} className="rounded-xl p-2 hover:bg-muted" aria-label="ماه بعد">
             <ChevronLeft className="size-5" />
           </Link>
           {(month.jy !== today.jy || month.jm !== today.jm) && (
@@ -156,17 +156,17 @@ export default async function CalendarPage(props: PageProps<"/calendar">) {
         </div>
         <form className="flex gap-2 text-sm">
           <input type="hidden" name="m" value={monthParam(month)} />
-          <select name="client" defaultValue={clientId ?? ""} className="h-9 rounded-lg border border-border bg-surface px-2" aria-label="مشتری">
+          <select name="client" defaultValue={clientId ?? ""} className="h-9 rounded-full border border-border bg-muted px-3 [&>option]:bg-surface-solid" aria-label="مشتری">
             <option value="">همه مشتری‌ها</option>
             {clients.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
-          <button type="submit" className="h-9 rounded-lg border border-border px-3 hover:bg-muted">نمایش</button>
+          <button type="submit" className="h-9 rounded-full border border-border px-3.5 hover:bg-muted">نمایش</button>
         </form>
       </div>
 
-      <div className="hidden overflow-hidden rounded-xl border border-border bg-surface md:block">
+      <div className="hidden overflow-hidden glass rounded-3xl md:block">
         <div className="grid grid-cols-7 border-b border-border bg-muted/50 text-center text-xs font-medium text-muted-foreground">
           {JALALI_WEEKDAYS.map((w) => (
             <div key={w} className="py-2">{w}</div>
@@ -201,7 +201,7 @@ export default async function CalendarPage(props: PageProps<"/calendar">) {
         {[...byDay.keys()]
           .sort((a, b) => a - b)
           .map((d) => (
-            <div key={d} className="rounded-xl border border-border bg-surface p-3">
+            <div key={d} className="glass rounded-3xl p-3">
               <p className={cn("mb-2 text-sm font-semibold", isToday(d) && "text-primary")}>
                 {JALALI_WEEKDAYS[jalaliWeekday(month.jy, month.jm, d)]} {toPersianDigits(d)} {JALALI_MONTHS[month.jm - 1]}
               </p>

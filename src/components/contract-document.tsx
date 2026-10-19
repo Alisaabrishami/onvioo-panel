@@ -18,7 +18,7 @@ export type ContractDoc = {
 // The contract as both sides read and print it, with the signature evidence
 export function ContractDocument({ doc, showEvidence = true }: { doc: ContractDoc; showEvidence?: boolean }) {
   return (
-    <article className="rounded-xl border border-border bg-surface p-6 leading-8 shadow-sm print:border-0 print:p-0 print:shadow-none md:p-10">
+    <article className="glass rounded-3xl p-6 leading-8 print:border-0 print:p-0 print:shadow-none md:p-10">
       <header className="mb-6 border-b border-border pb-4 text-center">
         <h2 className="text-lg font-bold">{doc.title}</h2>
         <p className="text-sm text-muted-foreground">مجری: آژانس Onvioo · کارفرما: {doc.clientName}</p>
@@ -39,7 +39,7 @@ export function ContractDocument({ doc, showEvidence = true }: { doc: ContractDo
       </dl>
       <div className="whitespace-pre-line text-sm">{doc.body}</div>
       {doc.signedAt && (
-        <footer className="mt-8 rounded-lg border border-success/40 bg-success/5 p-4 text-sm">
+        <footer className="mt-8 rounded-xl border border-success/40 bg-success/5 p-4 text-sm">
           <p className="mb-1 flex items-center gap-2 font-semibold text-success">
             <ShieldCheck className="size-4" />
             امضای دیجیتال کارفرما

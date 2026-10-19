@@ -40,8 +40,8 @@ export default async function ShootsPage() {
     const p = toJalaliParts(s.startsAt);
     return (
       <li key={s.id}>
-        <Link href={`/shoots/${s.id}`} className="flex gap-4 rounded-lg p-3 hover:bg-muted/60">
-          <div className="flex w-14 shrink-0 flex-col items-center rounded-lg bg-primary/10 py-2 text-primary">
+        <Link href={`/shoots/${s.id}`} className="flex gap-4 rounded-xl p-3 hover:bg-muted/60">
+          <div className="flex w-14 shrink-0 flex-col items-center rounded-xl bg-primary/10 py-2 text-primary">
             <span className="text-xs">{JALALI_WEEKDAYS[jalaliWeekday(p.jy, p.jm, p.jd)]}</span>
             <span className="text-lg font-bold">{toPersianDigits(p.jd)}</span>
           </div>
@@ -65,7 +65,7 @@ export default async function ShootsPage() {
         title="جلسه‌های ضبط"
         description="برنامه فیلمبرداری، سناریو و چک‌لیست تجهیزات"
         actions={
-          <Link href="/shoots/new" className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+          <Link href="/shoots/new" className="inline-flex h-10 items-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-glow transition-[filter,transform] hover:brightness-105 active:scale-[0.97]">
             <Plus className="size-4" />
             جلسه ضبط جدید
           </Link>

@@ -40,11 +40,11 @@ export default async function ClientPage(props: PageProps<"/clients/[id]">) {
         actions={<Badge tone={CLIENT_STATUS_TONES[client.status]}>{CLIENT_STATUS_LABELS[client.status]}</Badge>}
       />
       <div className="mb-6 flex flex-wrap gap-2 text-sm">
-        <Link href={`/content?client=${client.id}`} className="rounded-lg border border-border px-3 py-1.5 hover:bg-muted">محتواها</Link>
-        <Link href={`/calendar?client=${client.id}`} className="rounded-lg border border-border px-3 py-1.5 hover:bg-muted">تقویم</Link>
-        <Link href={`/projects/new?client=${client.id}`} className="rounded-lg border border-border px-3 py-1.5 hover:bg-muted">+ پروژه سایت</Link>
+        <Link href={`/content?client=${client.id}`} className="rounded-full border border-border px-3.5 py-1.5 hover:bg-muted">محتواها</Link>
+        <Link href={`/calendar?client=${client.id}`} className="rounded-full border border-border px-3.5 py-1.5 hover:bg-muted">تقویم</Link>
+        <Link href={`/projects/new?client=${client.id}`} className="rounded-full border border-border px-3.5 py-1.5 hover:bg-muted">+ پروژه سایت</Link>
         {isAdmin && (
-          <Link href={`/contracts/new?client=${client.id}`} className="rounded-lg border border-border px-3 py-1.5 hover:bg-muted">+ قرارداد</Link>
+          <Link href={`/contracts/new?client=${client.id}`} className="rounded-full border border-border px-3.5 py-1.5 hover:bg-muted">+ قرارداد</Link>
         )}
       </div>
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">

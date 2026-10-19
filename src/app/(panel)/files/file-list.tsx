@@ -51,7 +51,7 @@ export async function FileList({ clientId, limit = 100 }: { clientId?: string; l
             <a
               href={`/files/${f.id}/download`}
               title="دانلود"
-              className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-primary"
+              className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-primary"
             >
               <Download className="size-4" />
             </a>
