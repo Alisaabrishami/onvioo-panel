@@ -247,6 +247,11 @@ const TEHRAN_OFFSET_MS = 3.5 * 3600 * 1000;
 // Business Suite's 10/19/2026 14:30; a time of day, when present, is Tehran time
 export function parseDateTime(text: string): { day: string; at: Date | null } | null {
   const t = toLatinDigits(text.trim());
+  // Excel stores dates as days since 1899-12-30 when a cell is date-formatted
+  if (/^\d{5}(\.\d+)?$/.test(t) && Number(t) > 20000 && Number(t) < 80000) {
+    const ms = Math.round((Number(t) - 25569) * 86400000);
+    return { day: new Date(ms).toISOString().slice(0, 10), at: null };
+  }
   const time = /(\d{1,2}):(\d{2})/.exec(t.replace(/^\S+/, ""));
   const datePart = t.split(/[ T]/)[0];
   let day: string | null = null;
