@@ -383,3 +383,92 @@ export const notifications = pgTable(
   },
   (t) => [index("notifications_user_idx").on(t.userId, t.readAt)],
 );
+
+export const igAccountKindEnum = pgEnum("ig_account_kind", ["own", "competitor"]);
+export const insightKindEnum = pgEnum("insight_kind", ["viral_score", "weekly_report", "trend_ideas", "competitor_spike"]);
+
+export type IgAccountKind = (typeof igAccountKindEnum.enumValues)[number];
+export type InsightKind = (typeof insightKindEnum.enumValues)[number];
+
+// A client's own Instagram page, or a competitor page the team watches for them
+export const igAccounts = pgTable(
+  "ig_accounts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    kind: igAccountKindEnum("kind").notNull().default("own"),
+    username: text("username").notNull(),
+    // Graph API connection, own pages only; the token is encrypted at rest
+    igUserId: text("ig_user_id"),
+    accessToken: text("access_token"),
+    lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("ig_accounts_client_username_idx").on(t.clientId, t.username)],
+);
+
+export const igDailyStats = pgTable(
+  "ig_daily_stats",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => igAccounts.id, { onDelete: "cascade" }),
+    day: date("day").notNull(),
+    followers: integer("followers"),
+    reach: integer("reach"),
+    views: integer("views"),
+  },
+  (t) => [uniqueIndex("ig_daily_stats_account_day_idx").on(t.accountId, t.day)],
+);
+
+export const igPosts = pgTable(
+  "ig_posts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => igAccounts.id, { onDelete: "cascade" }),
+    // Instagram's media id, or the permalink for imported rows
+    externalId: text("external_id").notNull(),
+    permalink: text("permalink"),
+    type: contentTypeEnum("type").notNull().default("post"),
+    caption: text("caption"),
+    postedAt: timestamp("posted_at", { withTimezone: true }).notNull(),
+    contentId: uuid("content_id").references(() => contents.id, { onDelete: "set null" }),
+    views: integer("views"),
+    reach: integer("reach"),
+    likes: integer("likes"),
+    comments: integer("comments"),
+    saves: integer("saves"),
+    shares: integer("shares"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("ig_posts_account_external_idx").on(t.accountId, t.externalId),
+    index("ig_posts_posted_idx").on(t.accountId, t.postedAt),
+  ],
+);
+
+// AI results and alerts: viral scores, weekly reports, trend ideas, competitor spikes
+export const insights = pgTable(
+  "insights",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: insightKindEnum("kind").notNull(),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    contentId: uuid("content_id").references(() => contents.id, { onDelete: "cascade" }),
+    postId: uuid("post_id").references(() => igPosts.id, { onDelete: "cascade" }),
+    data: jsonb("data").notNull(),
+    // Weekly reports become visible in the portal once the team shares them
+    sharedAt: timestamp("shared_at", { withTimezone: true }),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("insights_client_idx").on(t.clientId, t.kind), index("insights_content_idx").on(t.contentId)],
+);

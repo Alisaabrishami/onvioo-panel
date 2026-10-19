@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, CalendarDays, Camera, Clapperboard, FileSignature, FolderUp, Globe, LayoutDashboard, LifeBuoy, ListTodo, LogOut, Users, UserCog } from "lucide-react";
+import { Bell, CalendarDays, Camera, Clapperboard, FileSignature, FolderUp, Globe, LayoutDashboard, LifeBuoy, ListTodo, LogOut, TrendingUp, Users, UserCog } from "lucide-react";
 import { toPersianDigits } from "@/lib/format";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -13,6 +13,7 @@ const ITEMS = [
   { href: "/dashboard", label: "داشبورد", icon: LayoutDashboard, roles: ["admin", "staff"] },
   { href: "/content", label: "محتوا", icon: Clapperboard, roles: ["admin", "staff"] },
   { href: "/calendar", label: "تقویم", icon: CalendarDays, roles: ["admin", "staff"] },
+  { href: "/growth", label: "رشد پیج‌ها", icon: TrendingUp, roles: ["admin", "staff"] },
   { href: "/tasks", label: "کارها", icon: ListTodo, roles: ["admin", "staff"] },
   { href: "/shoots", label: "جلسه‌های ضبط", icon: Camera, roles: ["admin", "staff"] },
   { href: "/projects", label: "پروژه‌های سایت", icon: Globe, roles: ["admin", "staff"] },

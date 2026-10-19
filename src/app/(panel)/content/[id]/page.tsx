@@ -1,4 +1,4 @@
-import { asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { Download, FileVideo, File as FileIcon, Trash2 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -15,6 +15,10 @@ import { Uploader } from "../../files/uploader";
 import { addComment, deleteContent, updateContent } from "../actions";
 import { ContentForm } from "../content-form";
 import { StagePicker } from "./stage-picker";
+import { ViralScoreCard } from "@/components/viral-score-card";
+import { scoreContentAction } from "../../growth/actions";
+import { aiConfigured } from "@/lib/ai";
+import type { ViralScore } from "@/lib/growth-ai";
 
 export const metadata: Metadata = { title: "محتوا" };
 
@@ -33,7 +37,7 @@ export default async function ContentDetailPage(props: PageProps<"/content/[id]"
   if (!content) notFound();
   const c = content.content;
 
-  const [files, comments, events, clients, team, shoots] = await Promise.all([
+  const [files, comments, events, clients, team, shoots, [viral]] = await Promise.all([
     db
       .select({
         id: schema.files.id,
@@ -78,6 +82,12 @@ export default async function ContentDetailPage(props: PageProps<"/content/[id]"
     clientOptions(),
     teamOptions(),
     shootOptions(c.shootId),
+    db
+      .select({ data: schema.insights.data, createdAt: schema.insights.createdAt })
+      .from(schema.insights)
+      .where(and(eq(schema.insights.contentId, id), eq(schema.insights.kind, "viral_score")))
+      .orderBy(desc(schema.insights.createdAt))
+      .limit(1),
   ]);
 
   const due = jalaliInputValue(c.dueAt);
@@ -159,6 +169,14 @@ export default async function ContentDetailPage(props: PageProps<"/content/[id]"
           </Card>
         </div>
         <div className="space-y-6">
+          {c.stage !== "published" && (
+            <ViralScoreCard
+              score={(viral?.data as ViralScore | undefined) ?? null}
+              scoredAt={viral?.createdAt ?? null}
+              action={scoreContentAction.bind(null, c.id)}
+              enabled={aiConfigured()}
+            />
+          )}
           <Card>
             <h2 className="mb-3 font-semibold">نظرها و اصلاحیه‌ها</h2>
             {comments.length > 0 && (

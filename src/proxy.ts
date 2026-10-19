@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 const SESSION_COOKIE = "onvioo_session";
-const PUBLIC_PATHS = ["/login"];
+// Cron endpoints authenticate with CRON_SECRET instead of a session
+const PUBLIC_PATHS = ["/login", "/api/cron"];
 
 // Optimistic check only: the cookie's presence. Every page and action
 // still verifies the session against the database.
