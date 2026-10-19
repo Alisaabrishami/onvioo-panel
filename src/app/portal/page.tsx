@@ -58,7 +58,7 @@ export default async function PortalHome() {
           <ul className="space-y-1">
             {waiting.map((c) => (
               <li key={c.id}>
-                <Link href={`/portal/content/${c.id}`} className="flex items-center justify-between rounded-lg bg-surface px-3 py-2.5 text-sm hover:text-primary">
+                <Link href={`/portal/content/${c.id}`} className="flex items-center justify-between rounded-xl bg-surface px-3 py-2.5 text-sm hover:text-primary">
                   <span>{c.title} <span className="text-xs text-muted-foreground">({TYPE_LABELS[c.type]})</span></span>
                   <ChevronLeft className="size-4" />
                 </Link>
@@ -74,7 +74,7 @@ export default async function PortalHome() {
           <ul className="space-y-1">
             {toSign.map((c) => (
               <li key={c.id}>
-                <Link href={`/portal/contracts/${c.id}`} className="flex items-center justify-between rounded-lg bg-surface px-3 py-2.5 text-sm hover:text-primary">
+                <Link href={`/portal/contracts/${c.id}`} className="flex items-center justify-between rounded-xl bg-surface px-3 py-2.5 text-sm hover:text-primary">
                   {c.title}
                   <ChevronLeft className="size-4" />
                 </Link>
@@ -86,13 +86,13 @@ export default async function PortalHome() {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Link href="/portal/content">
-          <Card className="h-full hover:border-primary/50">
+          <Card className="h-full transition-[transform,border-color] duration-300 hover:-translate-y-0.5 hover:border-primary/50">
             <p className="text-sm text-muted-foreground">در حال تولید</p>
             <p className="text-2xl font-bold">{toPersianDigits(inProduction.value)} محتوا</p>
           </Card>
         </Link>
         <Link href="/portal/tickets">
-          <Card className="h-full hover:border-primary/50">
+          <Card className="h-full transition-[transform,border-color] duration-300 hover:-translate-y-0.5 hover:border-primary/50">
             <p className="flex items-center gap-1.5 text-sm text-muted-foreground"><LifeBuoy className="size-4" />تیکت‌های باز</p>
             <p className="text-2xl font-bold">{toPersianDigits(openTickets.value)}</p>
           </Card>

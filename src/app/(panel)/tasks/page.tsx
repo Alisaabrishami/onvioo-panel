@@ -97,7 +97,7 @@ export default async function TasksPage(props: PageProps<"/tasks">) {
           <Link
             key={v}
             href={v === "mine" ? "/tasks" : `/tasks?view=${v}`}
-            className={cn("rounded-lg px-3 py-1.5", v === view ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground hover:bg-muted")}
+            className={cn("rounded-full px-3.5 py-1.5", v === view ? "bg-primary font-medium text-primary-foreground shadow-glow" : "text-muted-foreground hover:bg-muted")}
           >
             {VIEWS[v]}
           </Link>

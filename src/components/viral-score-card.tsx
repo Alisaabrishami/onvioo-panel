@@ -58,7 +58,7 @@ export function ViralScoreCard({
               {score.suggestions.map((s, i) => <li key={i}>{s}</li>)}
             </ol>
           </div>
-          <div className="rounded-lg bg-muted/60 p-3">
+          <div className="rounded-xl bg-muted/60 p-3">
             <h3 className="mb-1 text-xs font-medium text-muted-foreground">هوک پیشنهادی</h3>
             <p>{score.betterHook}</p>
             <h3 className="mb-1 mt-3 text-xs font-medium text-muted-foreground">کپشن پیشنهادی</h3>

@@ -47,7 +47,7 @@ export function AddAccountForm({ action, hasOwn }: { action: Action; hasOwn: boo
 export function ConnectForm({ action }: { action: Action }) {
   const [state, formAction, pending] = useFormAction(action);
   return (
-    <form key={state.at} action={formAction} className="mt-3 space-y-3 rounded-lg bg-muted/50 p-3">
+    <form key={state.at} action={formAction} className="mt-3 space-y-3 rounded-xl bg-muted/50 p-3">
       <Field label="شناسه حساب اینستاگرام (Instagram Business Account ID)" htmlFor="ig-user-id" error={state.errors?.igUserId}>
         <Input id="ig-user-id" name="igUserId" dir="ltr" inputMode="numeric" defaultValue={state.values?.igUserId} />
       </Field>
@@ -154,7 +154,7 @@ export function IdeaList({
   return (
     <ul className="grid gap-3 md:grid-cols-2">
       {ideas.map((idea, i) => (
-        <li key={i} className="flex flex-col rounded-lg border border-border p-4">
+        <li key={i} className="flex flex-col rounded-xl border border-border p-4">
           <div className="mb-2 flex items-start justify-between gap-2">
             <h3 className="font-medium">{idea.title}</h3>
             <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">{TYPE_LABELS[idea.format]}</span>

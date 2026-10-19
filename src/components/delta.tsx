@@ -6,7 +6,9 @@ export function Delta({ value }: { value: number | null }) {
   const up = value >= 0;
   const Icon = up ? TrendingUp : TrendingDown;
   return (
-    <span className={up ? "inline-flex items-center gap-1 text-success" : "inline-flex items-center gap-1 text-danger"}>
+    <span className={up
+          ? "inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-success"
+          : "inline-flex items-center gap-1 rounded-full bg-danger/15 px-2 py-0.5 text-danger"}>
       <Icon className="size-3.5" />
       <span className="ltr">{`${up ? "+" : "−"}${compact(Math.abs(value))}`}</span>
     </span>

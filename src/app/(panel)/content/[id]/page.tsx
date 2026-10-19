@@ -153,7 +153,7 @@ export default async function ContentDetailPage(props: PageProps<"/content/[id]"
                           {f.uploader && ` · ${f.uploader}`}
                         </p>
                       </div>
-                      <Link href={`/files/${f.id}/download`} prefetch={false} className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-primary" title="دانلود">
+                      <Link href={`/files/${f.id}/download`} prefetch={false} className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-primary" title="دانلود">
                         <Download className="size-4" />
                       </Link>
                     </li>
@@ -182,7 +182,7 @@ export default async function ContentDetailPage(props: PageProps<"/content/[id]"
             {comments.length > 0 && (
               <ul className="mb-4 space-y-3">
                 {comments.map((m) => (
-                  <li key={m.id} className="rounded-lg bg-muted/60 p-3 text-sm">
+                  <li key={m.id} className="rounded-xl bg-muted/60 p-3 text-sm">
                     <div className="mb-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
                       <span className="font-medium text-foreground">
                         {m.author ?? "کاربر حذف‌شده"}

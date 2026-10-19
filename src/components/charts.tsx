@@ -46,13 +46,24 @@ export function LineChart({ points, projection, label }: { points: ChartPoint[];
     ? [last, ...projection].map((p, i) => `${i ? "L" : "M"}${x(p.day).toFixed(1)},${y(p.value).toFixed(1)}`).join(" ")
     : null;
   const end = all[all.length - 1];
+  const gradientId = `area-${hash(label)}`;
   return (
     <figure dir="ltr" className="w-full">
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label} className="h-auto w-full overflow-visible">
-        <path d={area} fill="var(--primary)" opacity={0.08} />
-        <path d={path} fill="none" stroke="var(--primary)" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
-        {proj && <path d={proj} fill="none" stroke="var(--primary)" strokeWidth={2} strokeDasharray="6 5" opacity={0.7} />}
-        <circle cx={x(last.day)} cy={y(last.value)} r={4} fill="var(--primary)" />
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.35} />
+            <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        {[0.25, 0.5, 0.75].map((f) => (
+          <line key={f} x1={PAD.left} x2={W - PAD.right} y1={PAD.top + f * (H - PAD.top - PAD.bottom)} y2={PAD.top + f * (H - PAD.top - PAD.bottom)} stroke="var(--border)" />
+        ))}
+        <path d={area} fill={`url(#${gradientId})`} className="animate-[fade_1.2s_ease_0.4s_both]" />
+        <path d={path} pathLength={1} fill="none" stroke="var(--primary)" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" className="draw-line" />
+        {proj && <path d={proj} fill="none" stroke="var(--muted-foreground)" strokeWidth={2} strokeDasharray="6 5" className="animate-[fade_0.8s_ease_1.3s_both]" />}
+        <circle cx={x(last.day)} cy={y(last.value)} r={9} fill="var(--primary)" opacity={0.25} className="animate-[fade_0.6s_ease_1.4s_both]" />
+        <circle cx={x(last.day)} cy={y(last.value)} r={4.5} fill="var(--primary)" stroke="var(--surface-solid)" strokeWidth={2} className="animate-[fade_0.6s_ease_1.4s_both]" />
         <text x={PAD.left} y={H - 4} fontSize={11} fill="var(--muted-foreground)">{formatIsoDate(points[0].day)}</text>
         <text x={W - PAD.right} y={H - 4} fontSize={11} fill="var(--muted-foreground)" textAnchor="end">{formatIsoDate(end.day)}</text>
       </svg>
@@ -71,7 +82,18 @@ export function BarChart({ points, label }: { points: ChartPoint[]; label: strin
         {points.map((p, i) => {
           const h = (p.value / max) * (H - PAD.top - PAD.bottom);
           return (
-            <rect key={p.day} x={PAD.left + i * bw + bw * 0.15} y={H - PAD.bottom - h} width={bw * 0.7} height={h} rx={2} fill="var(--primary)" opacity={0.75}>
+            <rect
+              key={p.day}
+              x={PAD.left + i * bw + bw * 0.15}
+              y={H - PAD.bottom - h}
+              width={bw * 0.7}
+              height={h}
+              rx={Math.min(4, bw * 0.3)}
+              fill="var(--primary)"
+              opacity={0.8}
+              className="origin-bottom animate-[grow-y_0.7s_var(--ease-out-soft)_both] transition-opacity hover:opacity-100 [transform-box:fill-box]"
+              style={{ animationDelay: `${Math.min(i, 40) * 15}ms` }}
+            >
               <title>{`${formatIsoDate(p.day)}: ${compact(p.value)}`}</title>
             </rect>
           );
@@ -81,6 +103,13 @@ export function BarChart({ points, label }: { points: ChartPoint[]; label: strin
       </svg>
     </figure>
   );
+}
+
+// Stable per-chart id for the gradient definition
+function hash(s: string): string {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
 }
 
 function ChartEmpty() {

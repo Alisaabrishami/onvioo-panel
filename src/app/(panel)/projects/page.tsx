@@ -28,7 +28,7 @@ export default async function ProjectsPage() {
         title="پروژه‌های سایت"
         description="طراحی سایت، فرانت‌اند، بک‌اند، سئو و پشتیبانی"
         actions={
-          <Link href="/projects/new" className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+          <Link href="/projects/new" className="inline-flex h-10 items-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-glow transition-[filter,transform] hover:brightness-105 active:scale-[0.97]">
             <Plus className="size-4" />
             پروژه جدید
           </Link>
@@ -39,7 +39,7 @@ export default async function ProjectsPage() {
       ) : (
         <ul className="grid gap-3 md:grid-cols-2">
           {projects.map(({ project: p, clientName }) => (
-            <li key={p.id} className="rounded-xl border border-border bg-surface p-4 shadow-sm">
+            <li key={p.id} className="glass rounded-3xl p-4">
               <div className="mb-1 flex items-start justify-between gap-2">
                 <Link href={`/projects/${p.id}`} className="font-medium hover:text-primary">{p.title}</Link>
                 <Badge tone={PROJECT_STATUS_TONES[p.status]}>{PROJECT_STATUS_LABELS[p.status]}</Badge>

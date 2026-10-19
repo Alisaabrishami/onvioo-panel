@@ -30,14 +30,14 @@ export function ForecastCard({ forecast, series }: { forecast: Forecast; series:
             {extra > 0 && forecast.perReel && ` · ${compact(target - plain)} بیشتر با ${toPersianDigits(extra)} ریلز اضافه در هفته`}
           </p>
         </div>
-        <div className="flex gap-1 rounded-lg bg-muted p-1" role="group" aria-label="بازه پیش‌بینی">
+        <div className="flex gap-1 rounded-full bg-muted p-1" role="group" aria-label="بازه پیش‌بینی">
           {HORIZONS.map((h) => (
             <button
               key={h}
               type="button"
               onClick={() => setDays(h)}
               aria-pressed={days === h}
-              className={cn("rounded-md px-3 py-1 text-xs font-medium", days === h ? "bg-surface shadow-sm" : "text-muted-foreground")}
+              className={cn("rounded-full px-3 py-1 text-xs font-medium transition-colors", days === h ? "bg-surface-raised shadow-card" : "text-muted-foreground")}
             >
               {toPersianDigits(h)} روز
             </button>

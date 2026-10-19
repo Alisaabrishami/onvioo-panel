@@ -76,7 +76,7 @@ export default async function PortalContentDetail(props: PageProps<"/portal/cont
           {latest ? (
             <Card className="p-3">
               {latest.mime.startsWith("video/") ? (
-                <video src={`/files/${latest.id}/download`} controls playsInline preload="metadata" className="mx-auto max-h-[70vh] w-full rounded-lg bg-black" />
+                <video src={`/files/${latest.id}/download`} controls playsInline preload="metadata" className="mx-auto max-h-[70vh] w-full rounded-xl bg-black" />
               ) : (
                 <p className="p-4 text-sm">{latest.name}</p>
               )}
@@ -109,7 +109,7 @@ export default async function PortalContentDetail(props: PageProps<"/portal/cont
           {comments.length > 0 && (
             <ul className="mb-4 space-y-3">
               {comments.map((m) => (
-                <li key={m.id} className={m.role === "client" ? "rounded-lg bg-primary/10 p-3 text-sm" : "rounded-lg bg-muted/60 p-3 text-sm"}>
+                <li key={m.id} className={m.role === "client" ? "rounded-xl bg-primary/10 p-3 text-sm" : "rounded-xl bg-muted/60 p-3 text-sm"}>
                   <div className="mb-1 flex justify-between gap-2 text-xs text-muted-foreground">
                     <span className="font-medium text-foreground">{m.role === "client" ? m.author : "تیم Onvioo"}</span>
                     <span>{formatJalaliDateTime(m.createdAt)}</span>

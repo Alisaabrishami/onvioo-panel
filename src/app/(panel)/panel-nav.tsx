@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import type { Role } from "@/db/schema";
 import { logout } from "@/app/login/actions";
 import { ROLE_LABELS } from "@/lib/auth/roles";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
 const ITEMS = [
@@ -32,7 +33,7 @@ const ITEMS = [
 export function PanelNav({ role, unread }: { role: Role; unread: number }) {
   const pathname = usePathname();
   return (
-    <nav className="flex gap-1 overflow-x-auto px-2 pb-2 md:flex-1 md:flex-col md:px-3 md:pb-0">
+    <nav className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-1 md:flex-col md:px-3 md:pb-0">
       {ITEMS.filter((item) => (item.roles as readonly Role[]).includes(role)).map(
         ({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
@@ -41,14 +42,21 @@ export function PanelNav({ role, unread }: { role: Role; unread: number }) {
               key={href}
               href={href}
               className={cn(
-                "flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted",
+                "group flex shrink-0 items-center gap-2.5 rounded-full px-3.5 py-2 text-sm font-medium transition-[background-color,color,box-shadow] duration-200",
+                active
+                  ? "bg-primary text-primary-foreground shadow-glow"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
-              <Icon className="size-4" />
+              <Icon
+                className={cn(
+                  "size-[18px] transition-transform duration-300 ease-spring group-hover:scale-110",
+                  href === "/notifications" && unread > 0 && "animate-ring",
+                )}
+              />
               {label}
               {href === "/notifications" && unread > 0 && (
-                <span className="mr-auto rounded-full bg-danger px-1.5 text-[10px] font-bold text-white">
+                <span className="mr-auto animate-pop rounded-full bg-coral px-1.5 text-[10px] font-bold text-ink">
                   {toPersianDigits(Math.min(unread, 99))}
                 </span>
               )}
@@ -62,16 +70,20 @@ export function PanelNav({ role, unread }: { role: Role; unread: number }) {
 
 export function UserMenu({ name, role }: { name: string; role: Role }) {
   return (
-    <div className="hidden items-center justify-between gap-2 border-t border-border p-4 md:flex">
-      <div className="min-w-0">
+    <div className="m-3 hidden items-center gap-1 rounded-3xl bg-muted p-2 md:flex">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-lilac text-sm font-bold text-ink">
+        {name.trim().charAt(0)}
+      </span>
+      <div className="min-w-0 flex-1 px-1">
         <p className="truncate text-sm font-medium">{name}</p>
         <p className="text-xs text-muted-foreground">{ROLE_LABELS[role]}</p>
       </div>
+      <ThemeToggle />
       <form action={logout}>
         <button
           type="submit"
           title="خروج"
-          className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-danger"
+          className="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-danger"
         >
           <LogOut className="size-4" />
         </button>

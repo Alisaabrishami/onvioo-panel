@@ -25,7 +25,7 @@ export default async function PortalContractsPage() {
         <ul className="space-y-2">
           {rows.map((c) => (
             <li key={c.id}>
-              <Link href={`/portal/contracts/${c.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface p-4 hover:border-primary/50">
+              <Link href={`/portal/contracts/${c.id}`} className="flex items-center justify-between gap-3 glass rounded-3xl p-4 transition-[transform,border-color] duration-300 hover:-translate-y-0.5 hover:border-primary/50">
                 <div>
                   <p className="font-medium">{c.title}</p>
                   <p className="text-xs text-muted-foreground">
