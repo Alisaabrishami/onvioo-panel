@@ -16,7 +16,7 @@ export function Milestones({ items }: { items: Milestone[] }) {
   return (
     <ul className="space-y-1">
       {list.map((m) => (
-        <li key={m.id} className="group flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-muted/50">
+        <li key={m.id} className="group flex items-center gap-2 rounded-xl px-2 py-1.5 hover:bg-muted/50">
           <label className="flex flex-1 cursor-pointer items-center gap-2 text-sm">
             <input
               type="checkbox"

@@ -126,7 +126,7 @@ export function Uploader({
       {items.length > 0 && (
         <ul className="space-y-2">
           {items.map((it) => (
-            <li key={it.id} className="rounded-lg border border-border p-3 text-sm">
+            <li key={it.id} className="rounded-xl border border-border p-3 text-sm">
               <div className="flex justify-between gap-2">
                 <span className="truncate">{it.name}</span>
                 <span className="shrink-0 text-muted-foreground">{formatBytes(it.size)}</span>

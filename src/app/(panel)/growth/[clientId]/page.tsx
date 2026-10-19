@@ -155,7 +155,7 @@ export default async function ClientGrowthPage(props: PageProps<"/growth/[client
                     <Badge tone="success">برای مشتری ارسال شد</Badge>
                   ) : (
                     <form action={shareReport.bind(null, clientId, r.id)}>
-                      <button type="submit" className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-muted">
+                      <button type="submit" className="inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-sm hover:bg-muted">
                         <Share2 className="size-3.5" />
                         ارسال برای مشتری
                       </button>
@@ -197,7 +197,7 @@ export default async function ClientGrowthPage(props: PageProps<"/growth/[client
         ) : (
           <ul className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {g.rivalSummary.map(({ account, followers, change30, best }) => (
-              <li key={account.id} className="rounded-lg border border-border p-3">
+              <li key={account.id} className="rounded-xl border border-border p-3">
                 <a href={`https://www.instagram.com/${account.username}/`} target="_blank" rel="noreferrer" className="ltr block text-right font-medium hover:text-primary">
                   @{account.username}
                 </a>
@@ -217,7 +217,7 @@ export default async function ClientGrowthPage(props: PageProps<"/growth/[client
               {g.spikes.map(({ insight, post }) => {
                 const d = insight.data as Spike;
                 return (
-                  <li key={insight.id} className="rounded-lg bg-muted/50 p-3 text-sm">
+                  <li key={insight.id} className="rounded-xl bg-muted/50 p-3 text-sm">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span>
                         <span className="ltr font-medium">@{d.username}</span> · {toPersianDigits(d.ratio)} برابر معمول
@@ -274,7 +274,7 @@ export default async function ClientGrowthPage(props: PageProps<"/growth/[client
                       )}
                       {(a.kind === "competitor" || user.role === "admin") && (
                         <form action={removeAccount.bind(null, clientId, a.id)}>
-                          <button type="submit" title="حذف" className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-danger">
+                          <button type="submit" title="حذف" className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-danger">
                             <Trash2 className="size-4" />
                           </button>
                         </form>
@@ -324,7 +324,7 @@ export default async function ClientGrowthPage(props: PageProps<"/growth/[client
 
 function StatCard({ label, value, extra, extraLabel }: { label: string; value: React.ReactNode; extra?: React.ReactNode; extraLabel?: string }) {
   return (
-    <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
+    <div className="glass rounded-3xl p-4">
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="mt-1 text-xl font-bold">{value}</dd>
       {extra && <p className="mt-1 text-xs text-muted-foreground">{extraLabel} {extra}</p>}
