@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { autoTaskFor, isOverdue } from "./content";
+import { autoTaskFor, formatTimecode, isOverdue, parseTimecode } from "./content";
 
 describe("autoTaskFor", () => {
   it("opens an edit task when footage arrives", () => {
@@ -26,5 +26,26 @@ describe("isOverdue", () => {
     expect(isOverdue(new Date("2026-10-19T11:59:00Z"), now)).toBe(true);
     expect(isOverdue(new Date("2026-10-19T12:01:00Z"), now)).toBe(false);
     expect(isOverdue(null, now)).toBe(false);
+  });
+});
+
+describe("timecodes", () => {
+  it("parses minutes:seconds, plain seconds and Persian digits", () => {
+    expect(parseTimecode("1:05")).toBe(65);
+    expect(parseTimecode("۰:۱۵")).toBe(15);
+    expect(parseTimecode("90")).toBe(90);
+    expect(parseTimecode("")).toBeNull();
+    expect(parseTimecode("1:5")).toBeUndefined();
+    expect(parseTimecode("abc")).toBeUndefined();
+    expect(formatTimecode(65)).toBe("۱:۰۵");
+  });
+});
+
+describe("progressOf", () => {
+  it("is the share of finished milestones", async () => {
+    const { progressOf } = await import("./services");
+    expect(progressOf([])).toBe(0);
+    expect(progressOf([{ done: true }, { done: false }, { done: false }])).toBe(33);
+    expect(progressOf([{ done: true }, { done: true }])).toBe(100);
   });
 });

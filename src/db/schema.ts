@@ -212,6 +212,8 @@ export const contentComments = pgTable(
     body: text("body").notNull(),
     // Second of the video the comment points at, when it is about a moment
     timecode: integer("timecode"),
+    // Team-only notes the client never sees in the portal
+    internal: boolean("internal").notNull().default(false),
     createdAt: createdAt(),
   },
   (t) => [index("comments_content_idx").on(t.contentId)],
@@ -254,4 +256,130 @@ export const tasks = pgTable(
     index("tasks_assignee_idx").on(t.assigneeId, t.status),
     index("tasks_content_idx").on(t.contentId),
   ],
+);
+
+export const contractStatusEnum = pgEnum("contract_status", ["draft", "sent", "signed", "cancelled"]);
+export const serviceKindEnum = pgEnum("service_kind", ["website", "frontend", "backend", "seo", "support"]);
+export const projectStatusEnum = pgEnum("project_status", ["planning", "in_progress", "review", "done", "paused"]);
+export const ticketStatusEnum = pgEnum("ticket_status", ["open", "answered", "closed"]);
+
+export type ContractStatus = (typeof contractStatusEnum.enumValues)[number];
+export type ServiceKind = (typeof serviceKindEnum.enumValues)[number];
+export type ProjectStatus = (typeof projectStatusEnum.enumValues)[number];
+export type TicketStatus = (typeof ticketStatusEnum.enumValues)[number];
+
+export const contracts = pgTable(
+  "contracts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    // Total in toman; null when the contract has no fixed price
+    amount: bigint("amount", { mode: "number" }),
+    startsOn: date("starts_on"),
+    endsOn: date("ends_on"),
+    status: contractStatusEnum("status").notNull().default("draft"),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    // Evidence of the signature: who confirmed with which SMS code, from where,
+    // and a SHA-256 of exactly the text they saw
+    signedAt: timestamp("signed_at", { withTimezone: true }),
+    signedBy: uuid("signed_by").references(() => users.id, { onDelete: "set null" }),
+    signerName: text("signer_name"),
+    signerPhone: text("signer_phone"),
+    signerIp: text("signer_ip"),
+    signerAgent: text("signer_agent"),
+    bodyHash: text("body_hash"),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("contracts_client_idx").on(t.clientId)],
+);
+
+export const projects = pgTable(
+  "projects",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    kind: serviceKindEnum("kind").notNull().default("website"),
+    status: projectStatusEnum("status").notNull().default("planning"),
+    url: text("url"),
+    ownerId: uuid("owner_id").references(() => users.id, { onDelete: "set null" }),
+    startsOn: date("starts_on"),
+    dueOn: date("due_on"),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("projects_client_idx").on(t.clientId)],
+);
+
+export const milestones = pgTable(
+  "milestones",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    done: boolean("done").notNull().default(false),
+    position: integer("position").notNull().default(0),
+    doneAt: timestamp("done_at", { withTimezone: true }),
+  },
+  (t) => [index("milestones_project_idx").on(t.projectId)],
+);
+
+export const tickets = pgTable(
+  "tickets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    // Human-friendly number shown to clients, e.g. #1024
+    number: integer("number").generatedAlwaysAsIdentity({ startWith: 1001 }),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+    title: text("title").notNull(),
+    status: ticketStatusEnum("status").notNull().default("open"),
+    priority: taskPriorityEnum("priority").notNull().default("normal"),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("tickets_client_idx").on(t.clientId), index("tickets_status_idx").on(t.status)],
+);
+
+export const ticketMessages = pgTable(
+  "ticket_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ticketId: uuid("ticket_id")
+      .notNull()
+      .references(() => tickets.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    body: text("body").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("ticket_messages_ticket_idx").on(t.ticketId)],
+);
+
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    body: text("body"),
+    href: text("href"),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("notifications_user_idx").on(t.userId, t.readAt)],
 );

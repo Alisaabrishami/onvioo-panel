@@ -6,23 +6,19 @@ import { notFound } from "next/navigation";
 import { Badge, Card, PageHeader } from "@/components/ui";
 import { db, schema } from "@/db";
 import { requireTeam } from "@/lib/auth/dal";
-import { STAGE_LABELS, STAGE_TONES, TYPE_LABELS } from "@/lib/content";
+import { STAGE_LABELS, STAGE_TONES, TYPE_LABELS, formatTimecode } from "@/lib/content";
 import { clientOptions, isUuid, shootOptions, teamOptions } from "@/lib/data";
 import { formatBytes, formatJalaliDateTime, jalaliInputValue, toPersianDigits } from "@/lib/format";
 import { storageConfigured } from "@/lib/storage";
+import { CommentForm } from "@/components/comment-form";
 import { Uploader } from "../../files/uploader";
 import { addComment, deleteContent, updateContent } from "../actions";
 import { ContentForm } from "../content-form";
-import { CommentForm } from "./comment-form";
 import { StagePicker } from "./stage-picker";
 
 export const metadata: Metadata = { title: "محتوا" };
 
 const KIND_LABELS = { raw: "خام", edit: "تدوین", cover: "کاور", other: "سایر" } as const;
-
-function formatTimecode(seconds: number) {
-  return toPersianDigits(`${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`);
-}
 
 export default async function ContentDetailPage(props: PageProps<"/content/[id]">) {
   const user = await requireTeam();
@@ -58,6 +54,7 @@ export default async function ContentDetailPage(props: PageProps<"/content/[id]"
         id: schema.contentComments.id,
         body: schema.contentComments.body,
         timecode: schema.contentComments.timecode,
+        internal: schema.contentComments.internal,
         createdAt: schema.contentComments.createdAt,
         author: schema.users.name,
         role: schema.users.role,
@@ -172,6 +169,7 @@ export default async function ContentDetailPage(props: PageProps<"/content/[id]"
                       <span className="font-medium text-foreground">
                         {m.author ?? "کاربر حذف‌شده"}
                         {m.role === "client" && <Badge tone="primary" className="mr-1">مشتری</Badge>}
+                        {m.internal && <Badge className="mr-1">داخلی</Badge>}
                       </span>
                       <span>{formatJalaliDateTime(m.createdAt)}</span>
                     </div>
@@ -187,7 +185,7 @@ export default async function ContentDetailPage(props: PageProps<"/content/[id]"
                 ))}
               </ul>
             )}
-            <CommentForm action={addComment.bind(null, c.id)} />
+            <CommentForm action={addComment.bind(null, c.id)} allowInternal />
           </Card>
           <Card>
             <h2 className="mb-3 font-semibold">تاریخچه مراحل</h2>

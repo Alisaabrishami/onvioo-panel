@@ -3,11 +3,12 @@ import { Suspense } from "react";
 import { logout } from "@/app/login/actions";
 import { PanelNav, UserMenu } from "./panel-nav";
 import { requireTeam } from "@/lib/auth/dal";
+import { unreadCount } from "@/lib/notifications";
 
 export default function PanelLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="flex min-h-dvh flex-col md:flex-row">
-      <aside className="border-b border-border bg-surface md:sticky md:top-0 md:flex md:h-dvh md:w-60 md:shrink-0 md:flex-col md:border-b-0 md:border-l">
+      <aside className="border-b border-border bg-surface print:hidden md:sticky md:top-0 md:flex md:h-dvh md:w-60 md:shrink-0 md:flex-col md:border-b-0 md:border-l">
         <div className="flex items-center justify-between gap-2 px-4 py-3 md:py-5">
           <div className="flex items-center gap-2 font-bold">
             <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-sm font-black text-primary-foreground">
@@ -32,9 +33,10 @@ export default function PanelLayout({ children }: LayoutProps<"/">) {
 
 async function NavForUser() {
   const user = await requireTeam();
+  const unread = await unreadCount(user.id);
   return (
     <>
-      <PanelNav role={user.role} />
+      <PanelNav role={user.role} unread={unread} />
       <UserMenu name={user.name} role={user.role} />
     </>
   );

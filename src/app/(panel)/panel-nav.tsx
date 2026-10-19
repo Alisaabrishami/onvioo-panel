@@ -1,6 +1,7 @@
 "use client";
 
-import { CalendarDays, Camera, Clapperboard, FolderUp, LayoutDashboard, ListTodo, LogOut, Users, UserCog } from "lucide-react";
+import { Bell, CalendarDays, Camera, Clapperboard, FileSignature, FolderUp, Globe, LayoutDashboard, LifeBuoy, ListTodo, LogOut, Users, UserCog } from "lucide-react";
+import { toPersianDigits } from "@/lib/format";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Role } from "@/db/schema";
@@ -14,12 +15,16 @@ const ITEMS = [
   { href: "/calendar", label: "تقویم", icon: CalendarDays, roles: ["admin", "staff"] },
   { href: "/tasks", label: "کارها", icon: ListTodo, roles: ["admin", "staff"] },
   { href: "/shoots", label: "جلسه‌های ضبط", icon: Camera, roles: ["admin", "staff"] },
+  { href: "/projects", label: "پروژه‌های سایت", icon: Globe, roles: ["admin", "staff"] },
+  { href: "/tickets", label: "تیکت‌ها", icon: LifeBuoy, roles: ["admin", "staff"] },
   { href: "/clients", label: "مشتریان", icon: Users, roles: ["admin", "staff"] },
+  { href: "/contracts", label: "قراردادها", icon: FileSignature, roles: ["admin"] },
   { href: "/files", label: "فایل‌ها", icon: FolderUp, roles: ["admin", "staff"] },
   { href: "/staff", label: "کارکنان", icon: UserCog, roles: ["admin"] },
+  { href: "/notifications", label: "اعلان‌ها", icon: Bell, roles: ["admin", "staff"] },
 ] as const;
 
-export function PanelNav({ role }: { role: Role }) {
+export function PanelNav({ role, unread }: { role: Role; unread: number }) {
   const pathname = usePathname();
   return (
     <nav className="flex gap-1 overflow-x-auto px-2 pb-2 md:flex-1 md:flex-col md:px-3 md:pb-0">
@@ -37,6 +42,11 @@ export function PanelNav({ role }: { role: Role }) {
             >
               <Icon className="size-4" />
               {label}
+              {href === "/notifications" && unread > 0 && (
+                <span className="mr-auto rounded-full bg-danger px-1.5 text-[10px] font-bold text-white">
+                  {toPersianDigits(Math.min(unread, 99))}
+                </span>
+              )}
             </Link>
           );
         },

@@ -149,3 +149,23 @@ export function formatBytes(bytes: number): string {
   const rounded = unit === 0 ? value : Math.round(value * 10) / 10;
   return `${toPersianDigits(rounded)} ${units[unit]}`;
 }
+
+// Calendar dates without a time (contract terms, project deadlines) are stored
+// as Gregorian "YYYY-MM-DD" strings in date columns
+export function jalaliToIsoDate(text: string): string | null {
+  const d = parseJalali(text);
+  if (!d) return null;
+  const p = tehranParts(d);
+  return `${p.year}-${String(p.month).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
+}
+
+export function isoDateToJalali(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const [gy, gm, gd] = iso.split("-").map(Number);
+  const j = toJalaali(gy, gm, gd);
+  return `${j.jy}/${String(j.jm).padStart(2, "0")}/${String(j.jd).padStart(2, "0")}`;
+}
+
+export function formatIsoDate(iso: string | null | undefined): string {
+  return iso ? toPersianDigits(isoDateToJalali(iso)) : "";
+}
