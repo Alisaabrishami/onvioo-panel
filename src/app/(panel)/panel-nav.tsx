@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, CalendarDays, Camera, Clapperboard, FileSignature, FolderUp, Globe, LayoutDashboard, LifeBuoy, ListTodo, LogOut, TrendingUp, Users, UserCog } from "lucide-react";
+import { Bell, CalendarDays, Camera, Clapperboard, Clock, FileSignature, FolderUp, Globe, LayoutDashboard, LifeBuoy, ListTodo, LogOut, Trophy, TrendingUp, Users, UserCog, Wallet, Banknote } from "lucide-react";
 import { toPersianDigits } from "@/lib/format";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -21,7 +21,11 @@ const ITEMS = [
   { href: "/clients", label: "مشتریان", icon: Users, roles: ["admin", "staff"] },
   { href: "/contracts", label: "قراردادها", icon: FileSignature, roles: ["admin"] },
   { href: "/files", label: "فایل‌ها", icon: FolderUp, roles: ["admin", "staff"] },
+  { href: "/attendance", label: "حضور و مرخصی", icon: Clock, roles: ["admin", "staff"] },
+  { href: "/team", label: "امتیاز تیم", icon: Trophy, roles: ["admin", "staff"] },
   { href: "/staff", label: "کارکنان", icon: UserCog, roles: ["admin"] },
+  { href: "/payroll", label: "حقوق", icon: Banknote, roles: ["admin"] },
+  { href: "/finance", label: "مالی", icon: Wallet, roles: ["admin"] },
   { href: "/notifications", label: "اعلان‌ها", icon: Bell, roles: ["admin", "staff"] },
 ] as const;
 
