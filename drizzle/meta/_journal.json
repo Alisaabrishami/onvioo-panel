@@ -57,6 +57,13 @@
       "when": 1792456830130,
       "tag": "0007_jazzy_sunset_bain",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792488528007,
+      "tag": "0008_purple_jigsaw",
+      "breakpoints": true
     }
   ]
 }
