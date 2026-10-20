@@ -1,5 +1,5 @@
 import { and, asc, desc, eq } from "drizzle-orm";
-import { Download, FileVideo, File as FileIcon, Trash2 } from "lucide-react";
+import { Download, FileVideo, File as FileIcon, Trash2, Wand2 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -103,7 +103,7 @@ export default async function ContentDetailPage(props: PageProps<"/content/[id]"
       <div className="mb-6">
         <StagePicker contentId={c.id} stage={c.stage} />
       </div>
-      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+      <div className="grid gap-6 lg:grid-cols-[1fr_360px] [&>*]:min-w-0">
         <div className="space-y-6">
           <Card>
             <h2 className="mb-4 font-semibold">جزئیات</h2>
@@ -153,6 +153,12 @@ export default async function ContentDetailPage(props: PageProps<"/content/[id]"
                           {f.uploader && ` · ${f.uploader}`}
                         </p>
                       </div>
+                      {f.mime.startsWith("video/") && (
+                        <Link href={`/content/${c.id}/video/${f.id}`} className="inline-flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-primary/10" title="زیرنویس و کلیپ‌ساز">
+                          <Wand2 className="size-4" />
+                          <span className="max-sm:hidden">زیرنویس و کلیپ</span>
+                        </Link>
+                      )}
                       <Link href={`/files/${f.id}/download`} prefetch={false} className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-primary" title="دانلود">
                         <Download className="size-4" />
                       </Link>
