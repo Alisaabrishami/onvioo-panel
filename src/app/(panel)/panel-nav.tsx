@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, CalendarDays, Camera, Clapperboard, Clock, FileSignature, FolderUp, Globe, LayoutDashboard, LifeBuoy, ListTodo, LogOut, Trophy, TrendingUp, Users, UserCog, Wallet, Banknote, Receipt, Handshake, Activity, Sparkles } from "lucide-react";
+import { Bell, CalendarDays, Camera, Clapperboard, Clock, FileSignature, FolderUp, Globe, LayoutDashboard, LifeBuoy, ListTodo, LogOut, Trophy, TrendingUp, Users, UserCog, Wallet, Banknote, Receipt, Handshake, Activity, Sparkles, Bot, FileChartColumn } from "lucide-react";
 import { toPersianDigits } from "@/lib/format";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -15,6 +15,7 @@ const ITEMS = [
   { href: "/content", label: "محتوا", icon: Clapperboard, roles: ["admin", "staff"] },
   { href: "/calendar", label: "تقویم", icon: CalendarDays, roles: ["admin", "staff"] },
   { href: "/growth", label: "رشد پیج‌ها", icon: TrendingUp, roles: ["admin", "staff"] },
+  { href: "/reports", label: "گزارش ماهانه", icon: FileChartColumn, roles: ["admin", "staff"] },
   { href: "/tasks", label: "کارها", icon: ListTodo, roles: ["admin", "staff"] },
   { href: "/shoots", label: "جلسه‌های ضبط", icon: Camera, roles: ["admin", "staff"] },
   { href: "/projects", label: "پروژه‌های سایت", icon: Globe, roles: ["admin", "staff"] },
@@ -32,6 +33,7 @@ const ITEMS = [
   { href: "/payroll", label: "حقوق", icon: Banknote, roles: ["admin"] },
   { href: "/finance", label: "مالی", icon: Wallet, roles: ["admin"] },
   { href: "/notifications", label: "اعلان‌ها", icon: Bell, roles: ["admin", "staff"] },
+  { href: "/bot", label: "ربات بله و تلگرام", icon: Bot, roles: ["admin", "staff"] },
 ] as const;
 
 export function PanelNav({ role, unread }: { role: Role; unread: number }) {
