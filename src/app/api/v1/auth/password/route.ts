@@ -26,5 +26,5 @@ export const POST = open(async (request) => {
     await audit(user?.id ?? null, "login_failed", "phone", input.phone, { via: "api" });
     throw new ApiError(401, "bad_password", "شماره یا رمز عبور اشتباه است");
   }
-  return login(user, input.device, "password");
+  return login(user, input.device, "password", request.headers.get("user-agent"));
 });

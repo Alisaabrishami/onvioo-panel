@@ -44,7 +44,7 @@ export default async function TicketPage(props: PageProps<"/tickets/[id]">) {
             </form>
           ) : (
             <>
-              <ReplyForm action={replyTicket.bind(null, t.id)} placeholder="پاسخ به مشتری…" />
+              <ReplyForm action={replyTicket.bind(null, t.id)} placeholder="پاسخ به مشتری…" attachments={{ clientId: row.clientId }} />
               <form action={setTicketStatus.bind(null, t.id, "closed")} className="mt-3 border-t border-border pt-3">
                 <button type="submit" className="text-sm text-muted-foreground hover:text-danger">بستن تیکت</button>
               </form>

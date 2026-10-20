@@ -1,4 +1,5 @@
 import {
+  type AnyPgColumn,
   bigint,
   boolean,
   date,
@@ -102,6 +103,8 @@ export const sessions = pgTable(
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     // Set for mobile API tokens, e.g. "iPhone 15"; null for browser sessions
     device: text("device"),
+    // The browser or app's User-Agent at sign-in, to tell sessions apart
+    userAgent: text("user_agent"),
     createdAt: createdAt(),
   },
   (t) => [index("sessions_user_idx").on(t.userId)],
@@ -138,9 +141,11 @@ export const files = pgTable(
     kind: fileKindEnum("kind").notNull().default("other"),
     // Edit number within a content item: 1 for the first cut, 2 after changes…
     version: integer("version"),
+    // Set when the file is attached to a support ticket message
+    ticketMessageId: uuid("ticket_message_id").references((): AnyPgColumn => ticketMessages.id, { onDelete: "set null" }),
     createdAt: createdAt(),
   },
-  (t) => [index("files_client_idx").on(t.clientId), index("files_content_idx").on(t.contentId)],
+  (t) => [index("files_client_idx").on(t.clientId), index("files_content_idx").on(t.contentId), index("files_ticket_message_idx").on(t.ticketMessageId)],
 );
 
 export const auditLog = pgTable("audit_log", {

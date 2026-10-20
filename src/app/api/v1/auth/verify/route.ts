@@ -16,5 +16,5 @@ export const POST = open(async (request) => {
   );
   const user = await activeUserByPhone(input.phone);
   if (!user || !(await verifyOtp(input.phone, input.code))) throw new ApiError(401, "bad_code", "کد اشتباه یا منقضی شده است");
-  return login(user, input.device, "otp");
+  return login(user, input.device, "otp", request.headers.get("user-agent"));
 });
