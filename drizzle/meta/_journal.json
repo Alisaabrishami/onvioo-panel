@@ -43,6 +43,13 @@
       "when": 1792443662360,
       "tag": "0005_parched_wiccan",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792454920874,
+      "tag": "0006_lame_ultimo",
+      "breakpoints": true
     }
   ]
 }

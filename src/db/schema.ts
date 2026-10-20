@@ -7,6 +7,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  real,
   text,
   timestamp,
   uniqueIndex,
@@ -823,4 +824,57 @@ export const monitorChecks = pgTable(
     error: text("error"),
   },
   (t) => [index("monitor_checks_monitor_idx").on(t.monitorId, t.at)],
+);
+
+// ---------- Phase 6: video AI (subtitles, clips) ----------
+
+export const videoJobKindEnum = pgEnum("video_job_kind", ["transcribe", "burn", "clip"]);
+export const jobStatusEnum = pgEnum("job_status", ["queued", "running", "done", "failed"]);
+
+export type VideoJobKind = (typeof videoJobKindEnum.enumValues)[number];
+export type JobStatus = (typeof jobStatusEnum.enumValues)[number];
+
+// One line of speech, times in seconds from the start of the video
+export type Segment = { start: number; end: number; text: string };
+
+// A highlight Claude picked from the transcript as a short vertical clip
+export type ClipIdea = { start: number; end: number; title: string; hook: string; reason: string; score: number };
+
+// Text spoken in a video file, edited by the team before it is burned in
+export const transcripts = pgTable("transcripts", {
+  fileId: uuid("file_id")
+    .primaryKey()
+    .references(() => files.id, { onDelete: "cascade" }),
+  language: text("language").notNull().default("fa"),
+  duration: real("duration"),
+  segments: jsonb("segments").$type<Segment[]>().notNull(),
+  clipIdeas: jsonb("clip_ideas").$type<ClipIdea[]>(),
+  editedBy: uuid("edited_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: createdAt(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Slow video work (speech to text, burning subtitles, cutting clips) runs
+// in the background, one job at a time, so a page never waits on ffmpeg
+export const videoJobs = pgTable(
+  "video_jobs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: videoJobKindEnum("kind").notNull(),
+    status: jobStatusEnum("status").notNull().default("queued"),
+    fileId: uuid("file_id")
+      .notNull()
+      .references(() => files.id, { onDelete: "cascade" }),
+    options: jsonb("options").$type<Record<string, unknown>>().notNull().default({}),
+    // The file or content the job produced
+    outputFileId: uuid("output_file_id").references(() => files.id, { onDelete: "set null" }),
+    outputContentId: uuid("output_content_id").references(() => contents.id, { onDelete: "set null" }),
+    error: text("error"),
+    attempts: integer("attempts").notNull().default(0),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (t) => [index("video_jobs_status_idx").on(t.status, t.createdAt), index("video_jobs_file_idx").on(t.fileId)],
 );
