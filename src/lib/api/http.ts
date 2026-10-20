@@ -6,6 +6,7 @@ import * as z from "zod";
 import { db, schema } from "@/db";
 import type { Role } from "@/db/schema";
 import { generateSessionToken, hashToken } from "@/lib/auth/tokens";
+import { type Actor, OpsError, parseInput } from "@/lib/ops/errors";
 
 // Mobile API plumbing: bearer tokens (rows in the same sessions table as
 // browser logins, so signing out everywhere covers both), JSON errors in
@@ -13,7 +14,7 @@ import { generateSessionToken, hashToken } from "@/lib/auth/tokens";
 
 export const TOKEN_DAYS = 90;
 
-export type ApiUser = { id: string; name: string; phone: string; role: Role; clientId: string | null; tokenHash: string };
+export type ApiUser = Actor & { phone: string; tokenHash: string };
 
 export class ApiError extends Error {
   constructor(
@@ -28,10 +29,10 @@ export class ApiError extends Error {
 export const notFound = () => new ApiError(404, "not_found", "پیدا نشد");
 export const forbidden = () => new ApiError(403, "forbidden", "این بخش برای حساب شما نیست");
 
-export async function issueToken(userId: string, device: string | null): Promise<{ token: string; expiresAt: Date }> {
+export async function issueToken(userId: string, device: string | null, userAgent?: string | null): Promise<{ token: string; expiresAt: Date }> {
   const token = generateSessionToken();
   const expiresAt = new Date(Date.now() + TOKEN_DAYS * 86400_000);
-  await db.insert(schema.sessions).values({ id: hashToken(token), userId, expiresAt, device: device ?? "اپ موبایل" });
+  await db.insert(schema.sessions).values({ id: hashToken(token), userId, expiresAt, device: device ?? "اپ موبایل", userAgent: userAgent?.slice(0, 300) ?? null });
   return { token, expiresAt };
 }
 
@@ -49,6 +50,7 @@ async function bearerUser(request: Request): Promise<ApiUser | null> {
 }
 
 function errorResponse(error: unknown): Response {
+  if (error instanceof OpsError) return Response.json({ error: { code: error.code, message: error.message, ...(error.field ? { field: error.field } : {}) } }, { status: error.status });
   if (error instanceof ApiError) return Response.json({ error: { code: error.code, message: error.message } }, { status: error.status });
   console.error("[api]", error);
   return Response.json({ error: { code: "server_error", message: "خطای سرور؛ دوباره امتحان کنید" } }, { status: 500 });
@@ -87,18 +89,7 @@ export const CLIENT = ["client"] as const;
 
 export async function body<T extends z.ZodType>(request: Request, shape: T): Promise<z.infer<T>> {
   const json = await request.json().catch(() => null);
-  const parsed = shape.safeParse(json ?? {});
-  if (!parsed.success) throw new ApiError(422, "invalid", persianIssue(parsed.error.issues[0]));
-  return parsed.data;
-}
-
-// Our schemas carry Persian messages; zod's built-in English ones (a missing
-// or mistyped field) are replaced so the app can always show the message
-function persianIssue(issue: z.core.$ZodIssue | undefined): string {
-  if (!issue) return "ورودی معتبر نیست";
-  if (!/^[A-Za-z]/.test(issue.message)) return issue.message;
-  const field = issue.path.join(".") || "ورودی";
-  return issue.code === "invalid_type" && issue.input === undefined ? `${field} لازم است` : `${field} معتبر نیست`;
+  return parseInput(shape, json ?? {});
 }
 
 export function query(request: Request): URLSearchParams {
@@ -132,4 +123,27 @@ export function uuidParam(request: Request, name: string): string | null {
 export function clientOf(user: ApiUser): string {
   if (!user.clientId) throw forbidden();
   return user.clientId;
+}
+
+export const created = (data: unknown) => Response.json({ data }, { status: 201 });
+
+// An optional ?name= limited to known values
+export function enumParam<T extends string>(request: Request, name: string, values: readonly T[]): T | null {
+  const value = query(request).get(name);
+  if (!value) return null;
+  if (!values.includes(value as T)) throw new ApiError(422, "invalid", `${name} معتبر نیست`);
+  return value as T;
+}
+
+// The caller's address and app, kept as evidence with a signature
+export function origin(request: Request): { ip: string | null; agent: string | null } {
+  const h = request.headers;
+  return { ip: h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || null, agent: h.get("user-agent") };
+}
+
+// The JSON body as sent, for shared rules that validate it themselves
+export async function rawBody(request: Request): Promise<unknown> {
+  const json = await request.json().catch(() => null);
+  if (json !== null && typeof json !== "object") throw new ApiError(422, "invalid", "بدنه درخواست باید JSON باشد");
+  return json ?? {};
 }

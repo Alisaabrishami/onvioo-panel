@@ -4,7 +4,7 @@ import { createReadStream, createWriteStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import type { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // Any S3-compatible store works: ArvanCloud, ParsPack, MinIO, AWS
@@ -70,6 +70,18 @@ export function presignDownload(key: string, fileName: string): Promise<string> 
 // For a <video> on the page: plays in the browser instead of downloading
 export function presignView(key: string): Promise<string> {
   return getSignedUrl(s3(), new GetObjectCommand({ Bucket: bucket(), Key: key }), { expiresIn: 60 * 60 });
+}
+
+// Size of an uploaded object, or null when nothing is stored under the key
+export async function storedSize(key: string): Promise<number | null> {
+  try {
+    const res = await s3().send(new HeadObjectCommand({ Bucket: bucket(), Key: key }));
+    return res.ContentLength ?? null;
+  } catch (error) {
+    const status = (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
+    if (status === 404 || status === 403) return null;
+    throw error;
+  }
 }
 
 // Background jobs read and write whole files on local disk

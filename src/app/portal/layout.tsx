@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
-import { LogOut } from "lucide-react";
+import { LogOut, UserRound } from "lucide-react";
+import Link from "next/link";
 import { Suspense } from "react";
 import { logout } from "@/app/login/actions";
 import { db, schema } from "@/db";
@@ -42,6 +43,9 @@ async function PortalHeader() {
           }
         />
         <div className="flex items-center">
+          <Link href="/portal/account" title="حساب من" className="flex size-9 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground">
+            <UserRound className="size-4" />
+          </Link>
           <ThemeToggle />
           <form action={logout}>
             <button type="submit" title="خروج" className="flex size-9 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-danger">

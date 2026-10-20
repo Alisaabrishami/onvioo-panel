@@ -27,8 +27,8 @@ export async function profile(user: Pick<ApiUser, "id" | "name" | "phone" | "rol
   return { id: user.id, name: user.name, phone: user.phone, role: user.role, clientId: user.clientId, clientName: client?.name ?? null };
 }
 
-export async function login(user: typeof schema.users.$inferSelect, device: string | undefined, method: string) {
-  const { token, expiresAt } = await issueToken(user.id, device ?? null);
+export async function login(user: typeof schema.users.$inferSelect, device: string | undefined, method: string, userAgent?: string | null) {
+  const { token, expiresAt } = await issueToken(user.id, device ?? null, userAgent);
   await audit(user.id, "login", "user", user.id, { method, via: "api", device });
   return { token, expiresAt, user: await profile(user) };
 }

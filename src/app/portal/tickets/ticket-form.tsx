@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { AttachmentPicker } from "@/components/attachment-picker";
 import { Button, Field, Input, Select, Textarea } from "@/components/ui";
 import type { FormState } from "@/lib/forms";
 import { useFormAction } from "@/lib/use-form-action";
@@ -12,6 +14,7 @@ export function TicketForm({
   projects: { id: string; name: string }[];
 }) {
   const [state, formAction, pending] = useFormAction(action);
+  const [uploading, setUploading] = useState(false);
   const e = state.errors ?? {};
   const v = (f: string, fallback = "") => state.values?.[f] ?? fallback;
   return (
@@ -41,7 +44,11 @@ export function TicketForm({
       <Field label="توضیحات" htmlFor="body" error={e.body}>
         <Textarea id="body" name="body" rows={6} defaultValue={v("body")} placeholder="مشکل یا درخواست را با جزئیات بنویسید؛ آدرس صفحه هم اگر هست." />
       </Field>
-      <Button type="submit" disabled={pending}>{pending ? "در حال ثبت…" : "ثبت تیکت"}</Button>
+      <Field label="پیوست (اختیاری)" htmlFor="attachments" error={e.fileIds}>
+        <AttachmentPicker onBusyChange={setUploading} />
+      </Field>
+      {state.message && <p className="text-sm text-danger">{state.message}</p>}
+      <Button type="submit" disabled={pending || uploading}>{pending ? "در حال ثبت…" : uploading ? "در حال آپلود…" : "ثبت تیکت"}</Button>
     </form>
   );
 }
