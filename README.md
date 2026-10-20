@@ -105,6 +105,16 @@
 0 7 * * *  curl -fsS -m 1800 -X POST -H "Authorization: Bearer $CRON_SECRET" https://panel.example.com/api/cron/monthly
 ```
 
+## فاز ۸ (API اپ موبایل)
+
+یک API جدا با JSON در مسیر `/api/v1` تا اپ موبایل (یا هر برنامه دیگری) به پنل وصل شود. مستند کامل با فرمت OpenAPI در `/api/v1/openapi.json` است و برنامه‌نویس اپ می‌تواند آن را در Postman یا Swagger UI باز کند یا از رویش کد بسازد.
+
+- **ورود:** `POST /auth/otp` و `POST /auth/verify` با کد پیامکی، یا `POST /auth/password`. جواب یک توکن ۹۰ روزه است که در هدر `Authorization: Bearer …` فرستاده می‌شود. `POST /auth/logout` فقط همان توکن را باطل می‌کند. توکن‌ها در همان جدول نشست‌های وب‌اند، پس غیرفعال کردن یک کاربر همه دستگاه‌هایش را هم بیرون می‌کند. بعد از ۱۰ رمز اشتباه در ۱۵ دقیقه، ورود با رمز آن شماره قفل می‌شود
+- **تیم:** `GET /today` (ضبط‌ها، کارها و مهلت‌های امروز و وضعیت حضور)، `GET/POST /tasks` و `PATCH /tasks/{id}`، `GET /contents` و `GET /contents/{id}` (با لینک پخش و دانلود فایل‌ها)، `POST /contents/{id}/stage`، `POST /contents/{id}/comments`، `GET /attendance` و `POST /attendance/clock-in|clock-out`، `GET /clients`، `GET /shoots`
+- **مشتری:** `GET /contents?stage=client_review`، `POST /contents/{id}/approve` و `POST /contents/{id}/changes`، `GET /invoices` (با لینک پرداخت)، `GET /reports` و `GET /reports/{id}`
+- **همه:** `GET /me`، `GET /notifications` و `POST /notifications/read`
+- هر جواب موفق `{ data }` است و هر خطا `{ error: { code, message } }` که `message` آن متن فارسی آماده نمایش است. دسترسی‌ها همان دسترسی‌های پنل است: مشتری فقط داده خودش را می‌بیند (بدون یادداشت داخلی تیم و فایل خام)، کارمند فاکتورها و عددهای مالی را نمی‌بیند
+
 ## دیزاین سیستم
 
 - تم **سرمه‌ای شیشه‌ای** (پیش‌فرض) و تم روشن با دکمه خورشید و ماه؛ انتخاب روی هر دستگاه ذخیره می‌شود

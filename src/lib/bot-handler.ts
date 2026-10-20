@@ -1,6 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { and, asc, desc, eq, isNotNull, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { ChatPending, ChatPlatform, Role } from "@/db/schema";
 import { audit } from "./audit";
@@ -22,6 +21,7 @@ import { formatJalaliDate, formatTime, formatToman, toPersianDigits } from "./fo
 import { invoiceLabel } from "./invoices-data";
 import { appUrl } from "./payment";
 import { periodLabel } from "./payroll";
+import { clockIn, clockOut, completeTask, todayPlan } from "./team-ops";
 import { openStretch } from "./team-data";
 
 // The parts of a Telegram/Bale update the bot reads
@@ -128,8 +128,8 @@ async function handleCallback(platform: ChatPlatform, query: NonNullable<Update[
   const edit = (message: ChatMessage) => editChat(platform, chatId, messageId, message);
 
   if (action.verb === "td" && member.role !== "client") {
-    const text = await completeTask(member, action.id);
-    await answer(text);
+    const done = isUuid(action.id) ? await completeTask(member.id, action.id, "bot") : null;
+    await answer(done ? `انجام شد: ${shorten(done.title, 40)}` : "این کار قبلاً بسته شده است");
     return edit(await taskList(member.id));
   }
   if (action.verb === "ci" && member.role !== "client") {
@@ -182,53 +182,10 @@ async function taskList(userId: string): Promise<ChatMessage> {
   };
 }
 
-async function completeTask(member: Member, taskId: string): Promise<string> {
-  if (!isUuid(taskId)) return "پیدا نشد";
-  const [task] = await db
-    .update(schema.tasks)
-    .set({ status: "done", completedAt: new Date() })
-    .where(and(eq(schema.tasks.id, taskId), eq(schema.tasks.assigneeId, member.id), ne(schema.tasks.status, "done")))
-    .returning({ title: schema.tasks.title });
-  if (!task) return "این کار قبلاً بسته شده است";
-  await audit(member.id, "status", "task", taskId, { status: "done", via: "bot" });
-  revalidatePath("/tasks");
-  revalidatePath("/dashboard");
-  return `انجام شد: ${shorten(task.title, 40)}`;
-}
-
-// Today's work for one person: overdue and due-today tasks, shoots, content deadlines
+// Today's plan as one chat message
 export async function todayDigest(userId: string, now: Date = new Date()): Promise<string> {
-  const end = new Date(endOfTehranDay(now));
-  const start = new Date(end.getTime() - 86400_000);
-  const [tasks, shoots, contents, stretch] = await Promise.all([
-    db
-      .select({ title: schema.tasks.title, dueAt: schema.tasks.dueAt })
-      .from(schema.tasks)
-      .where(and(eq(schema.tasks.assigneeId, userId), ne(schema.tasks.status, "done"), isNotNull(schema.tasks.dueAt), lt(schema.tasks.dueAt, end)))
-      .orderBy(asc(schema.tasks.dueAt))
-      .limit(15),
-    db
-      .select({ title: schema.shoots.title, startsAt: schema.shoots.startsAt, location: schema.shoots.location, clientName: schema.clients.name })
-      .from(schema.shoots)
-      .innerJoin(schema.clients, eq(schema.clients.id, schema.shoots.clientId))
-      .where(and(eq(schema.shoots.crewId, userId), gte(schema.shoots.startsAt, start), lt(schema.shoots.startsAt, end)))
-      .orderBy(asc(schema.shoots.startsAt)),
-    db
-      .select({ title: schema.contents.title, stage: schema.contents.stage, dueAt: schema.contents.dueAt })
-      .from(schema.contents)
-      .where(
-        and(
-          eq(schema.contents.assigneeId, userId),
-          inArray(schema.contents.stage, ["idea", "shot", "editing", "internal_review"]),
-          isNotNull(schema.contents.dueAt),
-          lt(schema.contents.dueAt, end),
-        ),
-      )
-      .orderBy(asc(schema.contents.dueAt))
-      .limit(10),
-    openStretch(userId),
-  ]);
-  const late = (d: Date | null) => (d && d < start ? " ⚠️ دیرشده" : "");
+  const { dayStart, tasks, shoots, contents, stretch } = await todayPlan(userId, now);
+  const late = (d: Date | null) => (d && d < dayStart ? " ⚠️ دیرشده" : "");
   const parts = ["🗓 برنامه امروز"];
   if (shoots.length) parts.push("", "🎥 ضبط:", ...shoots.map((s) => `• ساعت ${formatTime(s.startsAt)} · ${s.title} (${s.clientName})${s.location ? ` · ${s.location}` : ""}`));
   if (tasks.length) parts.push("", "📋 کارها:", ...tasks.map((t) => `• ${t.title}${late(t.dueAt)}`));
@@ -236,13 +193,6 @@ export async function todayDigest(userId: string, now: Date = new Date()): Promi
   if (parts.length === 1) parts.push("", "برای امروز کار مهلت‌داری ندارید.");
   parts.push("", stretch ? `⏱ از ساعت ${formatTime(stretch.stretch.clockIn)} ورود زده‌اید.` : "⏱ هنوز ورود نزده‌اید.");
   return parts.join("\n");
-}
-
-// Midnight at the end of today, Tehran time (Iran has no daylight saving)
-function endOfTehranDay(now: Date): number {
-  const offset = 3.5 * 3600_000;
-  const local = now.getTime() + offset;
-  return Math.floor(local / 86400_000) * 86400_000 + 86400_000 - offset;
 }
 
 async function clockInPrompt(userId: string): Promise<ChatMessage> {
@@ -268,41 +218,15 @@ async function clockInPrompt(userId: string): Promise<ChatMessage> {
 
 async function clockInNow(userId: string, clientId: string | null): Promise<string> {
   if (clientId && !isUuid(clientId)) return "مشتری پیدا نشد";
-  const now = new Date();
-  const switched = await db.transaction(async (tx) => {
-    const closed = await tx
-      .update(schema.attendance)
-      .set({ clockOut: now })
-      .where(and(eq(schema.attendance.userId, userId), isNull(schema.attendance.clockOut)))
-      .returning({ id: schema.attendance.id });
-    await tx.insert(schema.attendance).values({ userId, clientId, clockIn: now });
-    return closed.length > 0;
-  });
-  revalidatePath("/attendance");
-  revalidatePath("/dashboard");
-  const [client] = clientId ? await db.select({ name: schema.clients.name }).from(schema.clients).where(eq(schema.clients.id, clientId)) : [];
-  const on = client ? ` · ${client.name}` : "";
-  return switched ? `🔁 از ساعت ${formatTime(now)} روی کار جدید${on}` : `🟢 ورود ثبت شد · ساعت ${formatTime(now)}${on}`;
+  const { at, switched, clientName } = await clockIn(userId, clientId);
+  const on = clientName ? ` · ${clientName}` : "";
+  return switched ? `🔁 از ساعت ${formatTime(at)} روی کار جدید${on}` : `🟢 ورود ثبت شد · ساعت ${formatTime(at)}${on}`;
 }
 
 async function clockOutNow(userId: string): Promise<string> {
-  const now = new Date();
-  const closed = await db
-    .update(schema.attendance)
-    .set({ clockOut: now })
-    .where(and(eq(schema.attendance.userId, userId), isNull(schema.attendance.clockOut)))
-    .returning({ clockIn: schema.attendance.clockIn });
-  if (closed.length === 0) return "ورودی ثبت نشده بود.";
-  revalidatePath("/attendance");
-  revalidatePath("/dashboard");
-  // Today's total, counting every stretch since midnight
-  const dayStart = new Date(endOfTehranDay(now) - 86400_000);
-  const today = await db
-    .select({ clockIn: schema.attendance.clockIn, clockOut: schema.attendance.clockOut })
-    .from(schema.attendance)
-    .where(and(eq(schema.attendance.userId, userId), or(gte(schema.attendance.clockIn, dayStart), gte(schema.attendance.clockOut, dayStart))));
-  const minutes = today.reduce((sum, s) => sum + ((s.clockOut ?? now).getTime() - Math.max(s.clockIn.getTime(), dayStart.getTime())) / 60_000, 0);
-  return `🔴 خروج ثبت شد · ساعت ${formatTime(now)}\nکار امروز: ${formatDuration(minutes)}. خسته نباشید!`;
+  const done = await clockOut(userId);
+  if (!done) return "ورودی ثبت نشده بود.";
+  return `🔴 خروج ثبت شد · ساعت ${formatTime(done.at)}\nکار امروز: ${formatDuration(done.todayMinutes)}. خسته نباشید!`;
 }
 
 // --- Clients ---------------------------------------------------------------
