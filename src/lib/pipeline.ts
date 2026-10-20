@@ -2,6 +2,7 @@ import "server-only";
 import { and, asc, eq, isNotNull, ne } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { ContentStage } from "@/db/schema";
+import type { InlineButton } from "./bot";
 import { REVIEW_TASK_KEY, autoTaskFor } from "./content";
 import { notifyClient, notifyUsers } from "./notify";
 
@@ -57,13 +58,18 @@ export async function moveContentStage(
   if (to === "client_review") {
     await notifyClient(
       content.clientId,
-      { title: `«${content.title}» آماده بررسی شماست`, href: `/portal/content/${content.id}` },
+      { title: `«${content.title}» آماده بررسی شماست`, href: `/portal/content/${content.id}`, buttons: reviewButtons(content.id) },
       { sms: true },
     );
   } else if (to === "published") {
     await notifyClient(content.clientId, { title: `«${content.title}» منتشر شد`, href: `/portal/content/${content.id}` });
   }
   return true;
+}
+
+// Bale/Telegram buttons; callback data stays under the 64-byte limit: a two-letter verb and a uuid
+export function reviewButtons(contentId: string): InlineButton[][] {
+  return [[{ text: "✅ تأیید", data: `ap:${contentId}` }, { text: "✏️ اصلاحیه دارم", data: `ch:${contentId}` }]];
 }
 
 // The longest-standing active admin reviews; with no admin the editor does

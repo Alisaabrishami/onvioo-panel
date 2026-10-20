@@ -878,3 +878,62 @@ export const videoJobs = pgTable(
   },
   (t) => [index("video_jobs_status_idx").on(t.status, t.createdAt), index("video_jobs_file_idx").on(t.fileId)],
 );
+
+// ---------- Phase 7: Bale/Telegram bot, monthly client reports ----------
+
+export const chatPlatformEnum = pgEnum("chat_platform", ["bale", "telegram"]);
+export type ChatPlatform = (typeof chatPlatformEnum.enumValues)[number];
+
+// What the bot is waiting for from this chat, e.g. the text of a change request
+export type ChatPending = { kind: "changes"; contentId: string } | null;
+
+// A panel login connected to a private chat with the bot
+export const chatLinks = pgTable(
+  "chat_links",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    platform: chatPlatformEnum("platform").notNull(),
+    chatId: text("chat_id").notNull(),
+    username: text("username"),
+    pending: jsonb("pending").$type<ChatPending>(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("chat_links_chat_idx").on(t.platform, t.chatId),
+    uniqueIndex("chat_links_user_idx").on(t.userId, t.platform),
+  ],
+);
+
+// Short one-time code a person sends to the bot to connect their chat
+export const chatLinkCodes = pgTable("chat_link_codes", {
+  code: text("code").primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
+
+// A client's month in numbers plus an AI summary; drafted automatically,
+// visible in the portal once the team sends it
+export const monthlyReports = pgTable(
+  "monthly_reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    // Jalali month, "1405-07"
+    period: text("period").notNull(),
+    data: jsonb("data").notNull(),
+    // Optional note from the team, shown at the top of the report
+    note: text("note"),
+    sharedAt: timestamp("shared_at", { withTimezone: true }),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("monthly_reports_client_period_idx").on(t.clientId, t.period)],
+);
