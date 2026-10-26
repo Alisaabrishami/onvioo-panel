@@ -10,15 +10,17 @@ const SESSION_DAYS = 30;
 export async function createSession(userId: string): Promise<void> {
   const token = generateSessionToken();
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
+  const requestHeaders = await headers();
   await db.insert(schema.sessions).values({
     id: hashToken(token),
     userId,
     expiresAt,
-    userAgent: (await headers()).get("user-agent")?.slice(0, 300) ?? null,
+    userAgent: requestHeaders.get("user-agent")?.slice(0, 300) ?? null,
   });
   (await cookies()).set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    // Secure only over HTTPS (Caddy sets X-Forwarded-Proto); browsers drop Secure cookies on plain http://IP
+    secure: requestHeaders.get("x-forwarded-proto") === "https",
     sameSite: "lax",
     path: "/",
     expires: expiresAt,
