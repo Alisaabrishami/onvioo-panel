@@ -8,8 +8,12 @@ import { invoiceLabel } from "@/lib/invoices-data";
 import { pruneChecks } from "@/lib/monitor-check";
 import { notifyClient, notifyTeam, notifyUsers } from "@/lib/notify";
 import { appUrl } from "@/lib/payment";
+import { sendToUsers } from "@/lib/bot";
+import { todayDigest } from "@/lib/bot-handler";
+import { onLeaveToday } from "@/lib/team-data";
 
-// Every morning: payment reminders, follow-ups due today, domains about to expire
+// Every morning: payment reminders, follow-ups due today, domains about to expire,
+// and each team member's plan for the day in their Bale/Telegram chat
 export async function POST(request: Request) {
   if (!cronAuthorized(request)) return Response.json({ error: "unauthorized" }, { status: 401 });
   const today = tehranDay();
@@ -60,6 +64,15 @@ export async function POST(request: Request) {
     await notifyTeam({ title: `دامنه ${new URL(d.url).hostname} در ${formatIsoDate(d.expires)} منقضی می‌شود`, body: d.clientName, href: "/monitoring" });
   }
 
+  const onLeave = new Set(await onLeaveToday());
+  const linked = await db
+    .selectDistinct({ id: schema.users.id })
+    .from(schema.chatLinks)
+    .innerJoin(schema.users, eq(schema.users.id, schema.chatLinks.userId))
+    .where(and(inArray(schema.users.role, ["admin", "staff"]), eq(schema.users.active, true)));
+  const planned = linked.filter((u) => !onLeave.has(u.id));
+  for (const u of planned) await sendToUsers([u.id], { text: await todayDigest(u.id, now) });
+
   await pruneChecks();
-  return Response.json({ reminders: due.length, followUps: leads.length, domains: domains.length });
+  return Response.json({ reminders: due.length, followUps: leads.length, domains: domains.length, digests: planned.length });
 }

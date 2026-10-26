@@ -1,11 +1,11 @@
-import { eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ActionButton } from "@/components/action-button";
 import { PeriodNav, readPeriod } from "@/components/period-nav";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
 import { db, schema } from "@/db";
-import { requireAdmin } from "@/lib/auth/dal";
+import { requireTeam } from "@/lib/auth/dal";
 import { formatToman, toPersianDigits } from "@/lib/format";
 import { formatMinutes, periodLabel, periodOf } from "@/lib/payroll";
 import { PAY_TYPE_LABELS } from "../staff/labels";
@@ -14,7 +14,8 @@ import { generatePayslips } from "./actions";
 export const metadata: Metadata = { title: "حقوق" };
 
 export default async function PayrollPage(props: PageProps<"/payroll">) {
-  await requireAdmin();
+  const user = await requireTeam();
+  if (user.role !== "admin") return <MyPayslips userId={user.id} />;
   const current = periodOf();
   const period = readPeriod((await props.searchParams).period, current);
   const slips = await db
@@ -82,6 +83,38 @@ export default async function PayrollPage(props: PageProps<"/payroll">) {
             </tbody>
           </table>
         </div>
+      )}
+    </>
+  );
+}
+
+// Staff: their own paid slips, newest first
+async function MyPayslips({ userId }: { userId: string }) {
+  const slips = await db
+    .select()
+    .from(schema.payslips)
+    .where(and(eq(schema.payslips.userId, userId), eq(schema.payslips.status, "paid")))
+    .orderBy(desc(schema.payslips.period));
+  return (
+    <>
+      <PageHeader title="فیش‌های حقوق من" description="هر فیش بعد از پرداخت اینجا می‌آید و قابل چاپ است" />
+      {slips.length === 0 ? (
+        <EmptyState>هنوز فیش پرداخت‌شده‌ای ندارید.</EmptyState>
+      ) : (
+        <ul className="stagger grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {slips.map((s) => (
+            <li key={s.id}>
+              <Link href={`/payroll/${s.id}`} className="glass block animate-rise rounded-3xl p-5 transition-transform hover:-translate-y-0.5">
+                <p className="text-xs text-muted-foreground">{periodLabel(s.period)}</p>
+                <p className="mt-2 text-xl font-bold">{formatToman(s.net)}</p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {PAY_TYPE_LABELS[s.payType]} · {formatMinutes(s.workedMinutes)} ساعت
+                  {s.items > 0 && ` · ${toPersianDigits(s.items)} کار`}
+                </p>
+              </Link>
+            </li>
+          ))}
+        </ul>
       )}
     </>
   );

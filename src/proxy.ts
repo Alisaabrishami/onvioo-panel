@@ -1,8 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 const SESSION_COOKIE = "onvioo_session";
-// Cron endpoints authenticate with CRON_SECRET; invoice pay links use their own token
-const PUBLIC_PATHS = ["/login", "/api/cron", "/pay", "/api/pay"];
+// Cron endpoints authenticate with CRON_SECRET, bot webhooks with BOT_WEBHOOK_SECRET,
+// the mobile API (/api/v1) with bearer tokens;
+// invoice pay links use their own token
+const PUBLIC_PATHS = ["/login", "/api/cron", "/api/bot", "/api/v1", "/pay", "/api/pay"];
 
 // Optimistic check only: the cookie's presence. Every page and action
 // still verifies the session against the database.
