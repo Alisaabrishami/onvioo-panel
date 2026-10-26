@@ -35,6 +35,7 @@ export default async function PortalTicketPage(props: PageProps<"/portal/tickets
             action={replyAsClient.bind(null, t.id)}
             placeholder={t.status === "closed" ? "پیام جدید، تیکت را دوباره باز می‌کند…" : "پیام شما…"}
             submitLabel="ارسال"
+            attachments={{ clientId: user.clientId }}
           />
           {t.status !== "closed" && (
             <form action={closeOwnTicket.bind(null, t.id)} className="mt-3 border-t border-border pt-3">
