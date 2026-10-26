@@ -1,0 +1,8 @@
+{$SITE_ADDRESS} {
+	encode zstd gzip
+	# Large video uploads go straight to S3, but receipts and attachments may pass through
+	request_body {
+		max_size 200MB
+	}
+	reverse_proxy app:3000
+}
