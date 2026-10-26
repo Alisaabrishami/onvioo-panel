@@ -1,6 +1,6 @@
 import "server-only";
 import { and, eq, gt } from "drizzle-orm";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { db, schema } from "@/db";
 import { generateSessionToken, hashToken } from "./tokens";
 
@@ -14,6 +14,7 @@ export async function createSession(userId: string): Promise<void> {
     id: hashToken(token),
     userId,
     expiresAt,
+    userAgent: (await headers()).get("user-agent")?.slice(0, 300) ?? null,
   });
   (await cookies()).set(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -68,4 +69,10 @@ export async function deleteSession(): Promise<void> {
 // Signs a user out everywhere, e.g. after deactivation or a password change
 export async function deleteUserSessions(userId: string): Promise<void> {
   await db.delete(schema.sessions).where(eq(schema.sessions.userId, userId));
+}
+
+// The hash of this browser's session, to mark it in the list of devices
+export async function currentSessionHash(): Promise<string | null> {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  return token ? hashToken(token) : null;
 }

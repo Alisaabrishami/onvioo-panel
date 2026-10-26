@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Clapperboard, FileSignature, Globe, Home, LifeBuoy } from "lucide-react";
+import { Bell, Bot, Clapperboard, FileChartColumn, FileSignature, Globe, Home, LifeBuoy, Receipt, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { toPersianDigits } from "@/lib/format";
@@ -9,9 +9,13 @@ import { cn } from "@/lib/utils";
 const ITEMS = [
   { href: "/portal", label: "خانه", icon: Home },
   { href: "/portal/content", label: "محتوا", icon: Clapperboard },
+  { href: "/portal/growth", label: "آمار پیج", icon: TrendingUp },
+  { href: "/portal/reports", label: "گزارش ماهانه", icon: FileChartColumn },
   { href: "/portal/projects", label: "سایت", icon: Globe },
   { href: "/portal/tickets", label: "پشتیبانی", icon: LifeBuoy },
   { href: "/portal/contracts", label: "قراردادها", icon: FileSignature },
+  { href: "/portal/invoices", label: "فاکتورها", icon: Receipt },
+  { href: "/portal/bot", label: "ربات", icon: Bot },
 ];
 
 export function PortalNav({ unread }: { unread: number }) {
@@ -24,8 +28,8 @@ export function PortalNav({ unread }: { unread: number }) {
           key={href}
           href={href}
           className={cn(
-            "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium",
-            isActive(href) ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted",
+            "flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-medium transition-[background-color,color,box-shadow] duration-200",
+            isActive(href) ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground hover:bg-muted hover:text-foreground",
           )}
         >
           <Icon className="size-4" />
@@ -36,13 +40,13 @@ export function PortalNav({ unread }: { unread: number }) {
         href="/portal/notifications"
         aria-label="اعلان‌ها"
         className={cn(
-          "relative mr-auto shrink-0 rounded-lg p-2",
-          isActive("/portal/notifications") ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted",
+          "relative mr-auto shrink-0 rounded-full border border-border p-2 transition-colors",
+          isActive("/portal/notifications") ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground hover:bg-muted",
         )}
       >
-        <Bell className="size-5" />
+        <Bell className={cn("size-5", unread > 0 && "animate-ring")} />
         {unread > 0 && (
-          <span className="absolute -top-0.5 -left-0.5 flex min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white">
+          <span className="absolute -top-0.5 -left-0.5 flex min-w-4 animate-pop items-center justify-center rounded-full bg-coral px-1 text-[10px] font-bold text-ink">
             {toPersianDigits(Math.min(unread, 99))}
           </span>
         )}

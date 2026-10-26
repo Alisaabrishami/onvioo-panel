@@ -2,20 +2,26 @@ import "server-only";
 import { and, eq, inArray, ne } from "drizzle-orm";
 import { after } from "next/server";
 import { db, schema } from "@/db";
+import { type InlineButton, PLATFORM_KEYS, appLink, linkButton, sendChat, sendToUsers, teamChatId } from "./bot";
 import { sendNotifySms } from "./sms";
 
-export type Notice = { title: string; body?: string; href?: string };
+// buttons only show in Bale/Telegram, e.g. approve / ask for changes
+export type Notice = { title: string; body?: string; href?: string; buttons?: InlineButton[][] };
 
-// In-app notifications for specific people. Duplicate and null ids are dropped,
-// and the person who caused the event is skipped.
+// In-app notifications for specific people, copied to their Bale/Telegram
+// chats when connected. Duplicate and null ids are dropped, and the person
+// who caused the event is skipped.
 export async function notifyUsers(
   userIds: (string | null | undefined)[],
   notice: Notice,
   exceptUserId?: string,
+  opts: { chat?: boolean } = {},
 ): Promise<void> {
   const ids = [...new Set(userIds.filter((id): id is string => !!id && id !== exceptUserId))];
   if (ids.length === 0) return;
-  await db.insert(schema.notifications).values(ids.map((userId) => ({ userId, ...notice })));
+  const { buttons, ...row } = notice;
+  await db.insert(schema.notifications).values(ids.map((userId) => ({ userId, ...row })));
+  if (opts.chat !== false) after(() => sendToUsers(ids, chatMessage({ ...row, buttons })));
 }
 
 // Admins plus any extra team members involved (an assignee, a project owner),
@@ -25,7 +31,10 @@ export async function notifyTeam(notice: Notice, extraUserIds: (string | null)[]
     .select({ id: schema.users.id })
     .from(schema.users)
     .where(and(eq(schema.users.role, "admin"), eq(schema.users.active, true)));
-  await notifyUsers([...admins.map((a) => a.id), ...extraUserIds], notice, exceptUserId);
+  // Admins already read the team group, so only the people involved get a private copy
+  const group = PLATFORM_KEYS.some((p) => teamChatId(p));
+  await notifyUsers(admins.map((a) => a.id), notice, exceptUserId, { chat: !group });
+  await notifyUsers(extraUserIds.filter((id) => !admins.some((a) => a.id === id)), notice, exceptUserId);
   after(() => sendToTeamChats(notice));
 }
 
@@ -59,38 +68,27 @@ export async function teamMemberIds(ids: (string | null)[]): Promise<string[]> {
   return rows.map((r) => r.id);
 }
 
-const CHATS = [
-  // Bale's bot API mirrors Telegram's and is reachable from servers in Iran
-  { name: "bale", base: "https://tapi.bale.ai", token: "BALE_BOT_TOKEN", chat: "BALE_CHAT_ID" },
-  { name: "telegram", base: "https://api.telegram.org", token: "TELEGRAM_BOT_TOKEN", chat: "TELEGRAM_CHAT_ID" },
-] as const;
-
-function chatText(notice: Notice): string {
-  const base = process.env.APP_URL?.replace(/\/$/, "");
-  return [notice.title, notice.body, base && notice.href ? `${base}${notice.href}` : null].filter(Boolean).join("\n");
+function chatMessage(notice: Notice) {
+  const url = appLink(notice.href);
+  const open = linkButton("باز کردن در پنل", url);
+  return {
+    // Without an https address for a button, the link goes in the text
+    text: [notice.title, notice.body, open.length ? null : url].filter(Boolean).join("\n"),
+    buttons: [...(notice.buttons ?? []), ...(open.length ? [open] : [])],
+  };
 }
 
 export async function sendToTeamChats(notice: Notice): Promise<void> {
-  const text = chatText(notice);
-  if (process.env.NOTIFY_DRIVER === "log") {
-    console.info(`[notify:dev] ${text.replace(/\n/g, " | ")}`);
-    return;
-  }
+  // Group messages are read-only; approving and the like happen in private chats
+  const message = chatMessage({ ...notice, buttons: undefined });
   await Promise.all(
-    CHATS.map(async (c) => {
-      const token = process.env[c.token];
-      const chatId = process.env[c.chat];
-      if (!token || !chatId) return;
+    PLATFORM_KEYS.map(async (platform) => {
+      const chatId = teamChatId(platform);
+      if (!chatId) return;
       try {
-        const res = await fetch(`${c.base}/bot${token}/sendMessage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chat_id: chatId, text }),
-          signal: AbortSignal.timeout(10_000),
-        });
-        if (!res.ok) console.error(`[notify] ${c.name} responded ${res.status}`);
+        await sendChat(platform, chatId, message);
       } catch (error) {
-        console.error(`[notify] ${c.name} failed`, error);
+        console.error(`[notify] ${platform} failed`, error);
       }
     }),
   );

@@ -22,7 +22,7 @@ export default async function PortalTicketsPage() {
       <PageHeader
         title="پشتیبانی"
         actions={
-          <Link href="/portal/tickets/new" className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+          <Link href="/portal/tickets/new" className="inline-flex h-10 items-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-glow transition-[filter,transform] hover:brightness-105 active:scale-[0.97]">
             <Plus className="size-4" />
             تیکت جدید
           </Link>
@@ -34,7 +34,7 @@ export default async function PortalTicketsPage() {
         <ul className="space-y-2">
           {rows.map((t) => (
             <li key={t.id}>
-              <Link href={`/portal/tickets/${t.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface p-4 hover:border-primary/50">
+              <Link href={`/portal/tickets/${t.id}`} className="flex items-center justify-between gap-3 glass rounded-3xl p-4 transition-[transform,border-color] duration-300 hover:-translate-y-0.5 hover:border-primary/50">
                 <div className="min-w-0">
                   <p className="truncate font-medium">
                     <span className="text-muted-foreground">#{toPersianDigits(t.number ?? 0)}</span> {t.title}

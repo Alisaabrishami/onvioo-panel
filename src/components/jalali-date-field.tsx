@@ -73,7 +73,7 @@ export function JalaliDateField({
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className="absolute left-1 top-1 rounded-md p-2 text-muted-foreground hover:text-primary"
+          className="absolute left-1 top-1 rounded-lg p-2 text-muted-foreground hover:text-primary"
           aria-label="انتخاب از تقویم"
         >
           <CalendarDays className="size-4" />
@@ -90,15 +90,15 @@ export function JalaliDateField({
         />
       )}
       {open && (
-        <div className="absolute top-11 z-20 w-72 rounded-xl border border-border bg-surface p-3 shadow-lg">
+        <div className="absolute top-11 z-20 w-72 glass rounded-3xl p-3 shadow-card">
           <div className="mb-2 flex items-center justify-between">
-            <button type="button" onClick={() => setView(addJalaliMonths(view.jy, view.jm, -1))} className="rounded-md p-1.5 hover:bg-muted" aria-label="ماه قبل">
+            <button type="button" onClick={() => setView(addJalaliMonths(view.jy, view.jm, -1))} className="rounded-lg p-1.5 hover:bg-muted" aria-label="ماه قبل">
               <ChevronRight className="size-4" />
             </button>
             <span className="text-sm font-semibold">
               {JALALI_MONTHS[view.jm - 1]} {toPersianDigits(view.jy)}
             </span>
-            <button type="button" onClick={() => setView(addJalaliMonths(view.jy, view.jm, 1))} className="rounded-md p-1.5 hover:bg-muted" aria-label="ماه بعد">
+            <button type="button" onClick={() => setView(addJalaliMonths(view.jy, view.jm, 1))} className="rounded-lg p-1.5 hover:bg-muted" aria-label="ماه بعد">
               <ChevronLeft className="size-4" />
             </button>
           </div>
@@ -118,7 +118,7 @@ export function JalaliDateField({
                     setOpen(false);
                   }}
                   className={cn(
-                    "rounded-md py-1.5 hover:bg-muted",
+                    "rounded-lg py-1.5 hover:bg-muted",
                     selected?.jy === view.jy && selected.jm === view.jm && selected.jd === d && "bg-primary text-primary-foreground hover:bg-primary",
                     today.jy === view.jy && today.jm === view.jm && today.jd === d && "ring-1 ring-primary",
                   )}
