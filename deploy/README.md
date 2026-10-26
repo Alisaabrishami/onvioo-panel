@@ -15,11 +15,11 @@
 از کامپیوتر خودتان (ترمینال مک/لینوکس یا PowerShell ویندوز):
 
 ```bash
-scp deploy/server-setup.sh root@31.214.255.181:
-ssh root@31.214.255.181 "bash server-setup.sh 31.214.255.181"
+scp deploy/server-setup.sh root@37.32.4.144:
+ssh root@37.32.4.144 "bash server-setup.sh 37.32.4.144"
 ```
 
-اگر با کاربری غیر از root وارد می‌شوید، بنویسید `sudo bash server-setup.sh 31.214.255.181`.
+اگر با کاربری غیر از root وارد می‌شوید، بنویسید `sudo bash server-setup.sh 37.32.4.144`.
 
 در پایان، اسکریپت چهار مقدار چاپ می‌کند: `SERVER_HOST`، `SERVER_PORT`، `SERVER_SSH_KEY` و `SERVER_KNOWN_HOSTS`.
 
@@ -31,7 +31,7 @@ ssh root@31.214.255.181 "bash server-setup.sh 31.214.255.181"
 
 در تب Actions، ورک‌فلوی **Deploy** را انتخاب و Run workflow را بزنید. این دکمه وقتی دیده می‌شود که این فایل‌ها در `main` ادغام شده باشند. بعد از آن، هر ادغام در `main` خودکار دیپلوی می‌شود.
 
-بعد از سبز شدن، پنل روی `http://31.214.255.181` باز می‌شود. برای ساختن اولین مدیر، روی سرور:
+بعد از سبز شدن، پنل روی `http://37.32.4.144` باز می‌شود. برای ساختن اولین مدیر، روی سرور:
 
 ```bash
 sudo -u deploy /opt/onvioo/create-admin.sh
