@@ -1,6 +1,10 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { createReadStream, createWriteStream } from "node:fs";
+import { stat } from "node:fs/promises";
+import type { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
+import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // Any S3-compatible store works: ArvanCloud, ParsPack, MinIO, AWS
@@ -12,6 +16,10 @@ function s3(): S3Client {
       endpoint: process.env.S3_ENDPOINT,
       region: process.env.S3_REGION ?? "default",
       forcePathStyle: true,
+      // Checksums only where S3 demands them: many S3-compatible stores do not
+      // understand the SDK's default aws-chunked uploads and save the framing
+      requestChecksumCalculation: "WHEN_REQUIRED",
+      responseChecksumValidation: "WHEN_REQUIRED",
       credentials: {
         accessKeyId: process.env.S3_ACCESS_KEY ?? "",
         secretAccessKey: process.env.S3_SECRET_KEY ?? "",
@@ -57,4 +65,36 @@ export function presignDownload(key: string, fileName: string): Promise<string> 
     }),
     { expiresIn: 10 * 60 },
   );
+}
+
+// For a <video> on the page: plays in the browser instead of downloading
+export function presignView(key: string): Promise<string> {
+  return getSignedUrl(s3(), new GetObjectCommand({ Bucket: bucket(), Key: key }), { expiresIn: 60 * 60 });
+}
+
+// Size of an uploaded object, or null when nothing is stored under the key
+export async function storedSize(key: string): Promise<number | null> {
+  try {
+    const res = await s3().send(new HeadObjectCommand({ Bucket: bucket(), Key: key }));
+    return res.ContentLength ?? null;
+  } catch (error) {
+    const status = (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
+    if (status === 404 || status === 403) return null;
+    throw error;
+  }
+}
+
+// Background jobs read and write whole files on local disk
+export async function downloadToFile(key: string, path: string): Promise<void> {
+  const res = await s3().send(new GetObjectCommand({ Bucket: bucket(), Key: key }));
+  if (!res.Body) throw new Error(`Empty object ${key}`);
+  await pipeline(res.Body as Readable, createWriteStream(path));
+}
+
+export async function uploadFile(path: string, key: string, mime: string): Promise<number> {
+  const { size } = await stat(path);
+  await s3().send(
+    new PutObjectCommand({ Bucket: bucket(), Key: key, ContentType: mime, ContentLength: size, Body: createReadStream(path) }),
+  );
+  return size;
 }

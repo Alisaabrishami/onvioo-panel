@@ -19,3 +19,10 @@ export async function requireUser(allowed?: readonly Role[]): Promise<SessionUse
 
 export const requireTeam = () => requireUser(["admin", "staff"]);
 export const requireAdmin = () => requireUser(["admin"]);
+
+// Portal pages: a client login, always tied to one client account
+export async function requireClient(): Promise<SessionUser & { clientId: string }> {
+  const user = await requireUser(["client"]);
+  if (!user.clientId) redirect("/login");
+  return { ...user, clientId: user.clientId };
+}

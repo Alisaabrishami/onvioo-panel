@@ -1,5 +1,6 @@
 import { and, asc, eq } from "drizzle-orm";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge, Card, PageHeader } from "@/components/ui";
 import { db, schema } from "@/db";
@@ -38,6 +39,14 @@ export default async function ClientPage(props: PageProps<"/clients/[id]">) {
         description={`ثبت‌شده در ${formatJalaliDate(client.createdAt)}`}
         actions={<Badge tone={CLIENT_STATUS_TONES[client.status]}>{CLIENT_STATUS_LABELS[client.status]}</Badge>}
       />
+      <div className="mb-6 flex flex-wrap gap-2 text-sm">
+        <Link href={`/content?client=${client.id}`} className="rounded-full border border-border px-3.5 py-1.5 hover:bg-muted">محتواها</Link>
+        <Link href={`/calendar?client=${client.id}`} className="rounded-full border border-border px-3.5 py-1.5 hover:bg-muted">تقویم</Link>
+        <Link href={`/projects/new?client=${client.id}`} className="rounded-full border border-border px-3.5 py-1.5 hover:bg-muted">+ پروژه سایت</Link>
+        {isAdmin && (
+          <Link href={`/contracts/new?client=${client.id}`} className="rounded-full border border-border px-3.5 py-1.5 hover:bg-muted">+ قرارداد</Link>
+        )}
+      </div>
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
         <div className="space-y-6">
           {isAdmin ? (

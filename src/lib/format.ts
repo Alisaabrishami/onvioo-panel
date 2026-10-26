@@ -1,4 +1,4 @@
-import { toGregorian, toJalaali } from "jalaali-js";
+import { jalaaliMonthLength, toGregorian, toJalaali } from "jalaali-js";
 
 const PERSIAN_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
 const ARABIC_DIGITS = "٠١٢٣٤٥٦٧٨٩";
@@ -50,6 +50,62 @@ function tehranParts(date: Date) {
   };
 }
 
+export const JALALI_WEEKDAYS = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
+
+export type JalaliParts = { jy: number; jm: number; jd: number; hour: number; minute: number };
+
+export function toJalaliParts(date: Date): JalaliParts {
+  const p = tehranParts(date);
+  const j = toJalaali(p.year, p.month, p.day);
+  return { jy: j.jy, jm: j.jm, jd: j.jd, hour: p.hour, minute: p.minute };
+}
+
+// A Jalali date and Tehran wall-clock time as an absolute instant
+export function fromJalali(jy: number, jm: number, jd: number, hour = 0, minute = 0): Date {
+  const g = toGregorian(jy, jm, jd);
+  return new Date(Date.UTC(g.gy, g.gm - 1, g.gd, hour, minute) - TEHRAN_OFFSET_MS);
+}
+
+export function jalaliMonthDays(jy: number, jm: number): number {
+  return jalaaliMonthLength(jy, jm);
+}
+
+// 0 = Saturday, the first day of the Iranian week
+export function jalaliWeekday(jy: number, jm: number, jd: number): number {
+  const g = toGregorian(jy, jm, jd);
+  return (new Date(Date.UTC(g.gy, g.gm - 1, g.gd)).getUTCDay() + 1) % 7;
+}
+
+export function addJalaliMonths(jy: number, jm: number, delta: number): { jy: number; jm: number } {
+  const index = jy * 12 + (jm - 1) + delta;
+  return { jy: Math.floor(index / 12), jm: (index % 12) + 1 };
+}
+
+// Accepts "1405/07/27" or "۱۴۰۵-۷-۲۷" and an optional "14:30"
+export function parseJalali(dateText: string, timeText = ""): Date | null {
+  const d = toLatinDigits(dateText).trim().match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
+  if (!d) return null;
+  const [jy, jm, jd] = d.slice(1).map(Number);
+  if (jm < 1 || jm > 12 || jd < 1 || jd > jalaaliMonthLength(jy, jm)) return null;
+  const t = toLatinDigits(timeText).trim();
+  if (!t) return fromJalali(jy, jm, jd);
+  const tm = t.match(/^(\d{1,2}):(\d{2})$/);
+  if (!tm || Number(tm[1]) > 23 || Number(tm[2]) > 59) return null;
+  return fromJalali(jy, jm, jd, Number(tm[1]), Number(tm[2]));
+}
+
+export function jalaliInputValue(date: Date | null | undefined): { date: string; time: string } {
+  if (!date) return { date: "", time: "" };
+  const p = toJalaliParts(date);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return { date: `${p.jy}/${pad(p.jm)}/${pad(p.jd)}`, time: `${pad(p.hour)}:${pad(p.minute)}` };
+}
+
+export function formatTime(date: Date): string {
+  const p = tehranParts(date);
+  return toPersianDigits(`${String(p.hour).padStart(2, "0")}:${String(p.minute).padStart(2, "0")}`);
+}
+
 // Start of the current Jalali month, at midnight Tehran time
 export function startOfJalaliMonth(now: Date = new Date()): Date {
   const p = tehranParts(now);
@@ -92,4 +148,24 @@ export function formatBytes(bytes: number): string {
   }
   const rounded = unit === 0 ? value : Math.round(value * 10) / 10;
   return `${toPersianDigits(rounded)} ${units[unit]}`;
+}
+
+// Calendar dates without a time (contract terms, project deadlines) are stored
+// as Gregorian "YYYY-MM-DD" strings in date columns
+export function jalaliToIsoDate(text: string): string | null {
+  const d = parseJalali(text);
+  if (!d) return null;
+  const p = tehranParts(d);
+  return `${p.year}-${String(p.month).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
+}
+
+export function isoDateToJalali(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const [gy, gm, gd] = iso.split("-").map(Number);
+  const j = toJalaali(gy, gm, gd);
+  return `${j.jy}/${String(j.jm).padStart(2, "0")}/${String(j.jd).padStart(2, "0")}`;
+}
+
+export function formatIsoDate(iso: string | null | undefined): string {
+  return iso ? toPersianDigits(isoDateToJalali(iso)) : "";
 }

@@ -16,6 +16,11 @@ export async function GET(request: Request, ctx: RouteContext<"/files/[id]/downl
   const allowed =
     file && (user.role !== "client" || (file.clientId !== null && file.clientId === user.clientId));
   if (!allowed) return new NextResponse(null, { status: 404 });
+  // A transaction receipt is for admins only
+  if (user.role !== "admin") {
+    const [receipt] = await db.select({ id: schema.transactions.id }).from(schema.transactions).where(eq(schema.transactions.receiptFileId, id));
+    if (receipt) return new NextResponse(null, { status: 404 });
+  }
 
   return NextResponse.redirect(await presignDownload(file.key, file.name));
 }
