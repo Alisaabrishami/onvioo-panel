@@ -152,6 +152,10 @@ Without Kavenegar keys in development, login codes are printed to the server log
 
 ## اجرا روی سرور با Docker
 
+برای سرور اصلی، راهنمای [`deploy/README.md`](deploy/README.md) را ببینید. با آن یک بار سرور را آماده می‌کنید و بعد هر ادغام در `main` با GitHub Actions خودکار دیپلوی می‌شود.
+
+برای اجرای ساده روی یک ماشین:
+
 ```bash
 cp .env.example .env              # fill in S3 and Kavenegar values
 docker compose up -d --build      # starts PostgreSQL, runs migrations, starts the panel on :3000
