@@ -3,12 +3,13 @@
 import { JalaliDateField } from "@/components/jalali-date-field";
 import { Button, Field, Input, Select } from "@/components/ui";
 import { PRIORITY_LABELS } from "@/lib/content";
+import { FOLLOW_UP_EVERY } from "@/lib/follow-up";
 import { useFormAction } from "@/lib/use-form-action";
 import { createTask } from "./actions";
 
 type Option = { id: string; name: string };
 
-export function TaskForm({ team, clients, me }: { team: Option[]; clients: Option[]; me: string }) {
+export function TaskForm({ team, clients, me, canFollowUp }: { team: Option[]; clients: Option[]; me: string; canFollowUp: boolean }) {
   const [state, formAction, pending] = useFormAction(createTask);
   const e = state.errors ?? {};
   const v = (f: string, fallback = "") => (state.ok ? fallback : (state.values?.[f] ?? fallback));
@@ -47,6 +48,20 @@ export function TaskForm({ team, clients, me }: { team: Option[]; clients: Optio
       <Button type="submit" disabled={pending}>
         {pending ? "…" : "افزودن"}
       </Button>
+      {canFollowUp && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm sm:col-span-2 lg:col-span-6">
+          <label className="flex items-center gap-2">
+            <input type="checkbox" name="followUp" defaultChecked={v("followUp") === "on"} className="size-4" />
+            دستیار از طرف من پیگیر این کار باشد
+          </label>
+          <Select name="followUpEvery" aria-label="هر چند وقت بپرسد" defaultValue={v("followUpEvery", "1")} className="h-8 w-auto py-0 text-xs">
+            {Object.entries(FOLLOW_UP_EVERY).map(([value, label]) => (
+              <option key={value} value={value}>{label} بپرسد</option>
+            ))}
+          </Select>
+          <span className="text-xs text-muted-foreground">نزدیک مهلت و بعد از آن هر روز می‌پرسد و نتیجه را به شما می‌گوید.</span>
+        </div>
+      )}
     </form>
   );
 }

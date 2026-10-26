@@ -3,6 +3,7 @@ import { and, asc, eq, gte, inArray, isNotNull, isNull, lt, ne, or } from "drizz
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/db";
 import { audit } from "./audit";
+import { followedTaskDone } from "./follow-up-run";
 import { openStretch } from "./team-data";
 
 // Everyday team actions shared by the Bale/Telegram bot and the mobile API
@@ -28,6 +29,7 @@ export async function completeTask(userId: string, taskId: string, via: string):
     .returning({ title: schema.tasks.title });
   if (!task) return null;
   await audit(userId, "status", "task", taskId, { status: "done", via });
+  await followedTaskDone(taskId, userId, via);
   revalidatePath("/tasks");
   revalidatePath("/dashboard");
   return task;

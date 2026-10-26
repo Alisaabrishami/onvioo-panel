@@ -2,6 +2,7 @@ import { and, eq, inArray, isNotNull, isNull, lt, lte, or } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { cronAuthorized } from "@/lib/cron";
 import { OPEN_STAGES } from "@/lib/crm";
+import { sendFollowUpDigests } from "@/lib/follow-up-run";
 import { formatIsoDate, formatToman, toPersianDigits } from "@/lib/format";
 import { addDays, tehranDay } from "@/lib/growth";
 import { invoiceLabel } from "@/lib/invoices-data";
@@ -13,7 +14,8 @@ import { todayDigest } from "@/lib/bot-handler";
 import { onLeaveToday } from "@/lib/team-data";
 
 // Every morning: payment reminders, follow-ups due today, domains about to expire,
-// and each team member's plan for the day in their Bale/Telegram chat
+// each team member's plan for the day in their Bale/Telegram chat, and the
+// managers' follow-up report
 export async function POST(request: Request) {
   if (!cronAuthorized(request)) return Response.json({ error: "unauthorized" }, { status: 401 });
   const today = tehranDay();
@@ -73,6 +75,9 @@ export async function POST(request: Request) {
   const planned = linked.filter((u) => !onLeave.has(u.id));
   for (const u of planned) await sendToUsers([u.id], { text: await todayDigest(u.id, now) });
 
+  // Managers hear how the tasks the assistant follows for them are going
+  const managerDigests = await sendFollowUpDigests(now);
+
   await pruneChecks();
-  return Response.json({ reminders: due.length, followUps: leads.length, domains: domains.length, digests: planned.length });
+  return Response.json({ reminders: due.length, followUps: leads.length, domains: domains.length, digests: planned.length, managerDigests });
 }

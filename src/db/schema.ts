@@ -38,6 +38,8 @@ export const contentStageEnum = pgEnum("content_stage", [
 export const fileKindEnum = pgEnum("file_kind", ["raw", "edit", "cover", "other"]);
 export const taskStatusEnum = pgEnum("task_status", ["todo", "doing", "done"]);
 export const taskPriorityEnum = pgEnum("task_priority", ["low", "normal", "high", "urgent"]);
+// What the assignee last told the assistant; "asked" means a question is waiting
+export const checkinStateEnum = pgEnum("checkin_state", ["asked", "on_track", "blocked"]);
 
 export type Role = (typeof roleEnum.enumValues)[number];
 export type ContentType = (typeof contentTypeEnum.enumValues)[number];
@@ -45,6 +47,7 @@ export type ContentStage = (typeof contentStageEnum.enumValues)[number];
 export type FileKind = (typeof fileKindEnum.enumValues)[number];
 export type TaskStatus = (typeof taskStatusEnum.enumValues)[number];
 export type TaskPriority = (typeof taskPriorityEnum.enumValues)[number];
+export type CheckinState = (typeof checkinStateEnum.enumValues)[number];
 export type ClientStatus = (typeof clientStatusEnum.enumValues)[number];
 export type PayType = (typeof payTypeEnum.enumValues)[number];
 
@@ -259,11 +262,41 @@ export const tasks = pgTable(
     createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
     createdAt: createdAt(),
     completedAt: timestamp("completed_at", { withTimezone: true }),
+    // The assistant asks the assignee for progress on the manager's behalf
+    followUpBy: uuid("follow_up_by").references(() => users.id, { onDelete: "set null" }),
+    followUpEvery: integer("follow_up_every").notNull().default(1),
+    checkin: checkinStateEnum("checkin"),
+    checkinNote: text("checkin_note"),
+    askedAt: timestamp("asked_at", { withTimezone: true }),
+    answeredAt: timestamp("answered_at", { withTimezone: true }),
+    // Questions in a row with no answer; the manager hears about it at two
+    unanswered: integer("unanswered").notNull().default(0),
   },
   (t) => [
     index("tasks_assignee_idx").on(t.assigneeId, t.status),
     index("tasks_content_idx").on(t.contentId),
+    index("tasks_follow_up_idx").on(t.followUpBy, t.status),
   ],
+);
+
+export const taskUpdateKindEnum = pgEnum("task_update_kind", ["asked", "on_track", "blocked", "done", "escalated"]);
+export type TaskUpdateKind = (typeof taskUpdateKindEnum.enumValues)[number];
+
+// The follow-up conversation on a task: each question and each answer
+export const taskUpdates = pgTable(
+  "task_updates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    taskId: uuid("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    kind: taskUpdateKindEnum("kind").notNull(),
+    note: text("note"),
+    via: text("via"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("task_updates_task_idx").on(t.taskId, t.createdAt)],
 );
 
 export const contractStatusEnum = pgEnum("contract_status", ["draft", "sent", "signed", "cancelled"]);
@@ -892,7 +925,7 @@ export const chatPlatformEnum = pgEnum("chat_platform", ["bale", "telegram"]);
 export type ChatPlatform = (typeof chatPlatformEnum.enumValues)[number];
 
 // What the bot is waiting for from this chat, e.g. the text of a change request
-export type ChatPending = { kind: "changes"; contentId: string } | null;
+export type ChatPending = { kind: "changes"; contentId: string } | { kind: "blocked"; taskId: string } | null;
 
 // A panel login connected to a private chat with the bot
 export const chatLinks = pgTable(

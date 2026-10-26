@@ -6,6 +6,8 @@ import type { Role } from "@/db/schema";
 import { AiUnavailableError, callClaude, type ApiBlock, type ApiMessage, type ApiTool } from "./ai";
 import { CATEGORY_LABELS, profitAndLoss } from "./finance";
 import { transactionsBetween, periodDayRange } from "./finance-data";
+import { groupForDigest } from "./follow-up";
+import { followedTasks } from "./follow-up-run";
 import { formatJalaliDateTime, formatToman, isoDateToJalali } from "./format";
 import { tehranDay } from "./growth";
 import { LEAD_STAGE_LABELS, OPEN_STAGES, followUpState } from "./crm";
@@ -171,6 +173,21 @@ const TOOLS: Tool[] = [
         .orderBy(asc(schema.tasks.dueAt))
         .limit(25);
       return rows.map((r) => ({ ...r, dueAt: r.dueAt && formatJalaliDateTime(r.dueAt) }));
+    },
+  }),
+  tool({
+    name: "task_follow_ups",
+    description:
+      "Tasks the assistant follows up with staff on a manager's behalf: who is stuck (and why), who isn't answering, what is late, what is moving, and what finished in the last day. scope 'mine' limits to follow-ups the person asking started.",
+    schema: z.object({ scope: z.enum(["mine", "all"]).default("mine") }),
+    adminOnly: true,
+    async run({ scope }, viewer) {
+      const now = new Date();
+      const since = new Date(now.getTime() - 24 * 3600_000);
+      const g = groupForDigest(await followedTasks(scope === "mine" ? viewer.id : null, since), now, since);
+      const brief = (list: typeof g.done) =>
+        list.map((t) => ({ title: t.title, assignee: t.assignee, due: t.dueAt && formatJalaliDateTime(t.dueAt), note: t.checkinNote, unansweredQuestions: t.unanswered }));
+      return { blocked: brief(g.blocked), notAnswering: brief(g.silent), late: brief(g.late), onTrack: brief(g.onTrack), doneLastDay: brief(g.done) };
     },
   }),
   tool({
