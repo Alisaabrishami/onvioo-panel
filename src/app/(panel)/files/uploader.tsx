@@ -5,22 +5,11 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { Select } from "@/components/ui";
 import { formatBytes, toPersianDigits } from "@/lib/format";
+import { putWithProgress } from "@/lib/put-upload";
 import { cn } from "@/lib/utils";
 import { completeUpload, startUpload } from "./actions";
 
 type Item = { id: string; name: string; size: number; progress: number; error?: string; done?: boolean };
-
-function putWithProgress(url: string, file: File, onProgress: (p: number) => void) {
-  return new Promise<void>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("PUT", url);
-    xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
-    xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total);
-    xhr.onload = () => (xhr.status < 300 ? resolve() : reject(new Error(String(xhr.status))));
-    xhr.onerror = () => reject(new Error("network"));
-    xhr.send(file);
-  });
-}
 
 const KIND_LABELS = { raw: "فایل خام", edit: "نسخه تدوین‌شده", cover: "کاور", other: "سایر" } as const;
 type Kind = keyof typeof KIND_LABELS;
@@ -59,7 +48,8 @@ export function Uploader({
     if (!ticket.ok) return update(id, { error: ticket.error });
     try {
       await putWithProgress(ticket.uploadUrl, file, (progress) => update(id, { progress }));
-      await completeUpload({ ...meta, key: ticket.key });
+      const done = await completeUpload({ ...meta, key: ticket.key });
+      if (!done.ok) return update(id, { error: done.error ?? "ثبت فایل ناموفق بود" });
       update(id, { progress: 1, done: true });
       router.refresh();
     } catch {
