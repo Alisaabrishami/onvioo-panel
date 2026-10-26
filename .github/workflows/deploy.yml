@@ -1,0 +1,68 @@
+name: Deploy
+
+# Builds the panel image here (the server in Iran can't reach Docker Hub or npm reliably),
+# copies it to the server over SSH and restarts the stack. One-time server setup and the
+# secrets this needs are described in deploy/README.md.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: |
+          docker build -t onvioo-panel:${{ github.sha }} .
+          docker save onvioo-panel:${{ github.sha }} | gzip -1 > image.tar.gz
+          ls -lh image.tar.gz
+
+      - name: SSH setup
+        env:
+          SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.SERVER_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+
+      - name: Upload
+        env:
+          HOST: ${{ secrets.SERVER_HOST }}
+          PORT: ${{ secrets.SERVER_PORT || '22' }}
+        run: |
+          mkdir bundle
+          cp deploy/docker-compose.prod.yml bundle/docker-compose.yml
+          cp deploy/Caddyfile deploy/*.sh bundle/
+          cp .env.example bundle/env.example
+          mv image.tar.gz bundle/
+          scp -P "$PORT" -o ServerAliveInterval=30 bundle/* deploy@"$HOST":/opt/onvioo/
+
+      - name: Restart on server
+        env:
+          HOST: ${{ secrets.SERVER_HOST }}
+          PORT: ${{ secrets.SERVER_PORT || '22' }}
+        run: ssh -p "$PORT" deploy@"$HOST" "bash /opt/onvioo/remote-deploy.sh ${{ github.sha }}"
+
+      - name: Health check
+        env:
+          HOST: ${{ secrets.SERVER_HOST }}
+          PORT: ${{ secrets.SERVER_PORT || '22' }}
+        run: |
+          for i in $(seq 1 20); do
+            if ssh -p "$PORT" deploy@"$HOST" "curl -fsS -o /dev/null http://127.0.0.1:3000/login"; then
+              echo "Panel is up"; exit 0
+            fi
+            sleep 5
+          done
+          ssh -p "$PORT" deploy@"$HOST" "cd /opt/onvioo && docker compose logs --tail 80 app migrate"
+          exit 1

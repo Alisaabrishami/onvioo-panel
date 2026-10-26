@@ -21,6 +21,7 @@ import {
 } from "@/lib/finance";
 import type { FinanceCategory } from "@/db/schema";
 import { accountLocked, transactionsBetween } from "@/lib/finance-data";
+import { buildObjectKey, presignUpload, storageConfigured } from "@/lib/storage";
 import { addDays, parseCount } from "@/lib/growth";
 import { parsePeriod } from "@/lib/payroll";
 import { MAX_TABLE_BYTES, readTableFile } from "@/lib/table-file";
@@ -147,6 +148,51 @@ export async function deleteTransaction(id: string): Promise<void> {
   await audit(admin.id, "delete", "transaction", id, { amount: t.amount, category: t.category });
   revalidateFinance();
   revalidatePath("/payroll");
+}
+
+// --- Receipts ---------------------------------------------------------
+
+const receiptSchema = z.object({
+  name: z.string().min(1).max(255),
+  size: z.number().int().positive().max(20 * 1024 * 1024),
+  mime: z.string().regex(/^(image\/|application\/pdf$)/),
+});
+
+export type ReceiptTicket = { ok: true; uploadUrl: string; key: string } | { ok: false; error: string };
+
+// A photo or PDF of the receipt goes straight from the browser to storage
+export async function startReceiptUpload(transactionId: string, input: z.input<typeof receiptSchema>): Promise<ReceiptTicket> {
+  await requireAdmin();
+  if (!storageConfigured()) return { ok: false, error: "فضای ذخیره‌سازی تنظیم نشده است" };
+  if (!isUuid(transactionId)) return { ok: false, error: "تراکنش پیدا نشد" };
+  const parsed = receiptSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "فقط عکس یا PDF تا ۲۰ مگابایت" };
+  const key = buildObjectKey(parsed.data.name, "receipts");
+  return { ok: true, key, uploadUrl: await presignUpload(key, parsed.data.mime) };
+}
+
+export async function attachReceipt(transactionId: string, input: z.input<typeof receiptSchema> & { key: string }): Promise<{ ok: boolean }> {
+  const admin = await requireAdmin();
+  const parsed = receiptSchema.extend({ key: z.string().startsWith("receipts/") }).safeParse(input);
+  if (!isUuid(transactionId) || !parsed.success) return { ok: false };
+  const [t] = await db.select({ id: schema.transactions.id }).from(schema.transactions).where(eq(schema.transactions.id, transactionId));
+  if (!t) return { ok: false };
+  const [file] = await db
+    .insert(schema.files)
+    .values({ ...parsed.data, kind: "other", uploadedBy: admin.id })
+    .returning({ id: schema.files.id });
+  await db.update(schema.transactions).set({ receiptFileId: file.id }).where(eq(schema.transactions.id, transactionId));
+  await audit(admin.id, "attach_receipt", "transaction", transactionId);
+  revalidateFinance();
+  return { ok: true };
+}
+
+export async function removeReceipt(transactionId: string): Promise<void> {
+  const admin = await requireAdmin();
+  if (!isUuid(transactionId)) return;
+  await db.update(schema.transactions).set({ receiptFileId: null }).where(eq(schema.transactions.id, transactionId));
+  await audit(admin.id, "remove_receipt", "transaction", transactionId);
+  revalidateFinance();
 }
 
 // --- Partners ---------------------------------------------------------
