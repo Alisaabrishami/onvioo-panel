@@ -1,4 +1,5 @@
 import {
+  type AnyPgColumn,
   bigint,
   boolean,
   date,
@@ -7,6 +8,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  real,
   text,
   timestamp,
   uniqueIndex,
@@ -99,6 +101,10 @@ export const sessions = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    // Set for mobile API tokens, e.g. "iPhone 15"; null for browser sessions
+    device: text("device"),
+    // The browser or app's User-Agent at sign-in, to tell sessions apart
+    userAgent: text("user_agent"),
     createdAt: createdAt(),
   },
   (t) => [index("sessions_user_idx").on(t.userId)],
@@ -135,9 +141,11 @@ export const files = pgTable(
     kind: fileKindEnum("kind").notNull().default("other"),
     // Edit number within a content item: 1 for the first cut, 2 after changes…
     version: integer("version"),
+    // Set when the file is attached to a support ticket message
+    ticketMessageId: uuid("ticket_message_id").references((): AnyPgColumn => ticketMessages.id, { onDelete: "set null" }),
     createdAt: createdAt(),
   },
-  (t) => [index("files_client_idx").on(t.clientId), index("files_content_idx").on(t.contentId)],
+  (t) => [index("files_client_idx").on(t.clientId), index("files_content_idx").on(t.contentId), index("files_ticket_message_idx").on(t.ticketMessageId)],
 );
 
 export const auditLog = pgTable("audit_log", {
@@ -823,4 +831,116 @@ export const monitorChecks = pgTable(
     error: text("error"),
   },
   (t) => [index("monitor_checks_monitor_idx").on(t.monitorId, t.at)],
+);
+
+// ---------- Phase 6: video AI (subtitles, clips) ----------
+
+export const videoJobKindEnum = pgEnum("video_job_kind", ["transcribe", "burn", "clip"]);
+export const jobStatusEnum = pgEnum("job_status", ["queued", "running", "done", "failed"]);
+
+export type VideoJobKind = (typeof videoJobKindEnum.enumValues)[number];
+export type JobStatus = (typeof jobStatusEnum.enumValues)[number];
+
+// One line of speech, times in seconds from the start of the video
+export type Segment = { start: number; end: number; text: string };
+
+// A highlight Claude picked from the transcript as a short vertical clip
+export type ClipIdea = { start: number; end: number; title: string; hook: string; reason: string; score: number };
+
+// Text spoken in a video file, edited by the team before it is burned in
+export const transcripts = pgTable("transcripts", {
+  fileId: uuid("file_id")
+    .primaryKey()
+    .references(() => files.id, { onDelete: "cascade" }),
+  language: text("language").notNull().default("fa"),
+  duration: real("duration"),
+  segments: jsonb("segments").$type<Segment[]>().notNull(),
+  clipIdeas: jsonb("clip_ideas").$type<ClipIdea[]>(),
+  editedBy: uuid("edited_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: createdAt(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Slow video work (speech to text, burning subtitles, cutting clips) runs
+// in the background, one job at a time, so a page never waits on ffmpeg
+export const videoJobs = pgTable(
+  "video_jobs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: videoJobKindEnum("kind").notNull(),
+    status: jobStatusEnum("status").notNull().default("queued"),
+    fileId: uuid("file_id")
+      .notNull()
+      .references(() => files.id, { onDelete: "cascade" }),
+    options: jsonb("options").$type<Record<string, unknown>>().notNull().default({}),
+    // The file or content the job produced
+    outputFileId: uuid("output_file_id").references(() => files.id, { onDelete: "set null" }),
+    outputContentId: uuid("output_content_id").references(() => contents.id, { onDelete: "set null" }),
+    error: text("error"),
+    attempts: integer("attempts").notNull().default(0),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (t) => [index("video_jobs_status_idx").on(t.status, t.createdAt), index("video_jobs_file_idx").on(t.fileId)],
+);
+
+// ---------- Phase 7: Bale/Telegram bot, monthly client reports ----------
+
+export const chatPlatformEnum = pgEnum("chat_platform", ["bale", "telegram"]);
+export type ChatPlatform = (typeof chatPlatformEnum.enumValues)[number];
+
+// What the bot is waiting for from this chat, e.g. the text of a change request
+export type ChatPending = { kind: "changes"; contentId: string } | null;
+
+// A panel login connected to a private chat with the bot
+export const chatLinks = pgTable(
+  "chat_links",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    platform: chatPlatformEnum("platform").notNull(),
+    chatId: text("chat_id").notNull(),
+    username: text("username"),
+    pending: jsonb("pending").$type<ChatPending>(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("chat_links_chat_idx").on(t.platform, t.chatId),
+    uniqueIndex("chat_links_user_idx").on(t.userId, t.platform),
+  ],
+);
+
+// Short one-time code a person sends to the bot to connect their chat
+export const chatLinkCodes = pgTable("chat_link_codes", {
+  code: text("code").primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
+
+// A client's month in numbers plus an AI summary; drafted automatically,
+// visible in the portal once the team sends it
+export const monthlyReports = pgTable(
+  "monthly_reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    // Jalali month, "1405-07"
+    period: text("period").notNull(),
+    data: jsonb("data").notNull(),
+    // Optional note from the team, shown at the top of the report
+    note: text("note"),
+    sharedAt: timestamp("shared_at", { withTimezone: true }),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("monthly_reports_client_period_idx").on(t.clientId, t.period)],
 );

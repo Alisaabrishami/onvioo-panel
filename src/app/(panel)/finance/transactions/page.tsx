@@ -14,6 +14,7 @@ import { tehranDay } from "@/lib/growth";
 import { periodOf } from "@/lib/payroll";
 import { addTransaction, deleteTransaction } from "../actions";
 import { TransactionForm } from "../forms";
+import { ReceiptCell } from "../receipt";
 
 export const metadata: Metadata = { title: "تراکنش‌ها" };
 
@@ -43,7 +44,7 @@ export default async function TransactionsPage(props: PageProps<"/finance/transa
   return (
     <>
       <PageHeader title="تراکنش‌ها" actions={<PeriodNav period={period} basePath="/finance/transactions" current={current} query={{ ...(accountId && { account: accountId }), ...(category && { category }) }} />} />
-      <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
+      <div className="grid gap-6 lg:grid-cols-[1fr_22rem] [&>*]:min-w-0">
         <div className="space-y-4">
           <form className="flex flex-wrap gap-2">
             <input type="hidden" name="period" value={period} />
@@ -69,6 +70,7 @@ export default async function TransactionsPage(props: PageProps<"/finance/transa
                     <th className="px-3 py-3 text-right font-medium">دسته</th>
                     <th className="px-3 py-3 text-right font-medium">حساب</th>
                     <th className="px-3 py-3 text-right font-medium">مبلغ</th>
+                    <th className="px-3 py-3 text-right font-medium">رسید</th>
                     <th className="px-3 py-3" />
                   </tr>
                 </thead>
@@ -91,6 +93,9 @@ export default async function TransactionsPage(props: PageProps<"/finance/transa
                           {formatToman(signed(t))}
                         </td>
                         <td className="px-3 py-2.5">
+                          <ReceiptCell transactionId={t.id} fileId={t.receiptFileId} />
+                        </td>
+                        <td className="px-3 py-2.5">
                           {locked ? (
                             <Lock className="size-4 text-muted-foreground" aria-label="دوره قفل است" />
                           ) : (
@@ -108,7 +113,7 @@ export default async function TransactionsPage(props: PageProps<"/finance/transa
                 <tfoot>
                   <tr className="border-t border-border bg-muted/40 font-semibold">
                     <td className="px-3 py-2.5" colSpan={4}>جمع {toPersianDigits(txs.length)} تراکنش</td>
-                    <td className="px-3 py-2.5" colSpan={2}>{formatToman(total)}</td>
+                    <td className="px-3 py-2.5" colSpan={3}>{formatToman(total)}</td>
                   </tr>
                 </tfoot>
               </table>
