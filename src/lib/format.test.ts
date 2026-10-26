@@ -5,6 +5,9 @@ import {
   formatJalaliDateTime,
   formatJalaliLong,
   formatToman,
+  formatIsoDate,
+  isoDateToJalali,
+  jalaliToIsoDate,
   addJalaliMonths,
   fromJalali,
   jalaliInputValue,
@@ -92,5 +95,16 @@ describe("jalali calendar helpers", () => {
     expect(jalaliWeekday(1405, 7, 27)).toBe(2);
     expect(addJalaliMonths(1405, 12, 1)).toEqual({ jy: 1406, jm: 1 });
     expect(addJalaliMonths(1405, 1, -1)).toEqual({ jy: 1404, jm: 12 });
+  });
+});
+
+describe("date-only values", () => {
+  it("converts between Jalali text and ISO dates", () => {
+    expect(jalaliToIsoDate("۱۴۰۵/۰۷/۲۷")).toBe("2026-10-19");
+    expect(jalaliToIsoDate("1405/01/01")).toBe("2026-03-21");
+    expect(jalaliToIsoDate("bad")).toBeNull();
+    expect(isoDateToJalali("2026-10-19")).toBe("1405/07/27");
+    expect(isoDateToJalali(null)).toBe("");
+    expect(formatIsoDate("2026-03-21")).toBe("۱۴۰۵/۰۱/۰۱");
   });
 });

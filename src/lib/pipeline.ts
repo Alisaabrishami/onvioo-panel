@@ -2,7 +2,9 @@ import "server-only";
 import { and, asc, eq, isNotNull, ne } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { ContentStage } from "@/db/schema";
+import type { InlineButton } from "./bot";
 import { REVIEW_TASK_KEY, autoTaskFor } from "./content";
+import { notifyClient, notifyUsers } from "./notify";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -13,14 +15,14 @@ export async function moveContentStage(
   to: ContentStage,
   userId: string | null,
 ): Promise<boolean> {
-  return db.transaction(async (tx) => {
+  const moved = await db.transaction(async (tx) => {
     const [content] = await tx
       .select()
       .from(schema.contents)
       .where(eq(schema.contents.id, contentId))
       .for("update");
-    if (!content) return false;
-    if (content.stage === to) return true;
+    if (!content) return null;
+    if (content.stage === to) return { content, task: null, changed: false };
 
     await tx
       .update(schema.contents)
@@ -32,19 +34,42 @@ export async function moveContentStage(
 
     await closeStageTasks(tx, contentId);
     const auto = autoTaskFor(to, content.stage, content.title);
+    let task: { title: string; assigneeId: string | null } | null = null;
     if (auto) {
+      const assigneeId = auto.key === REVIEW_TASK_KEY ? await reviewerId(tx, content.assigneeId) : content.assigneeId;
       await tx.insert(schema.tasks).values({
         title: auto.title,
         autoKey: auto.key,
         contentId,
         clientId: content.clientId,
-        assigneeId: auto.key === REVIEW_TASK_KEY ? await reviewerId(tx, content.assigneeId) : content.assigneeId,
+        assigneeId,
         dueAt: content.dueAt,
         createdBy: userId,
       });
+      task = { title: auto.title, assigneeId };
     }
-    return true;
+    return { content, task, changed: true };
   });
+  if (!moved) return false;
+  if (!moved.changed) return true;
+
+  const { content, task } = moved;
+  if (task) await notifyUsers([task.assigneeId], { title: `کار جدید: ${task.title}`, href: "/tasks" }, userId ?? undefined);
+  if (to === "client_review") {
+    await notifyClient(
+      content.clientId,
+      { title: `«${content.title}» آماده بررسی شماست`, href: `/portal/content/${content.id}`, buttons: reviewButtons(content.id) },
+      { sms: true },
+    );
+  } else if (to === "published") {
+    await notifyClient(content.clientId, { title: `«${content.title}» منتشر شد`, href: `/portal/content/${content.id}` });
+  }
+  return true;
+}
+
+// Bale/Telegram buttons; callback data stays under the 64-byte limit: a two-letter verb and a uuid
+export function reviewButtons(contentId: string): InlineButton[][] {
+  return [[{ text: "✅ تأیید", data: `ap:${contentId}` }, { text: "✏️ اصلاحیه دارم", data: `ch:${contentId}` }]];
 }
 
 // The longest-standing active admin reviews; with no admin the editor does

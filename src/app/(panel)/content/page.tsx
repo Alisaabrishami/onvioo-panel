@@ -60,7 +60,7 @@ export default async function ContentPage(props: PageProps<"/content">) {
         actions={
           <Link
             href="/content/new"
-            className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            className="inline-flex h-10 items-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-glow transition-[filter,transform] hover:brightness-105 active:scale-[0.97]"
           >
             <Plus className="size-4" />
             محتوای جدید
@@ -68,20 +68,20 @@ export default async function ContentPage(props: PageProps<"/content">) {
         }
       />
       <form className="mb-4 flex flex-wrap gap-2 text-sm">
-        <select name="client" defaultValue={clientId ?? ""} className="h-9 rounded-lg border border-border bg-surface px-2" aria-label="مشتری">
+        <select name="client" defaultValue={clientId ?? ""} className="h-9 rounded-full border border-border bg-muted px-3 [&>option]:bg-surface-solid" aria-label="مشتری">
           <option value="">همه مشتری‌ها</option>
           {clients.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
-        <select name="assignee" defaultValue={sp.assignee === "me" ? "me" : (assignee ?? "")} className="h-9 rounded-lg border border-border bg-surface px-2" aria-label="مسئول">
+        <select name="assignee" defaultValue={sp.assignee === "me" ? "me" : (assignee ?? "")} className="h-9 rounded-full border border-border bg-muted px-3 [&>option]:bg-surface-solid" aria-label="مسئول">
           <option value="">همه اعضای تیم</option>
           <option value="me">فقط کارهای من</option>
           {team.map((u) => (
             <option key={u.id} value={u.id}>{u.name}</option>
           ))}
         </select>
-        <button type="submit" className="h-9 rounded-lg border border-border px-3 hover:bg-muted">اعمال فیلتر</button>
+        <button type="submit" className="h-9 rounded-full border border-border px-3.5 hover:bg-muted">اعمال فیلتر</button>
         {(clientId || assignee) && (
           <Link href="/content" className="flex h-9 items-center px-2 text-muted-foreground hover:text-primary">حذف فیلتر</Link>
         )}

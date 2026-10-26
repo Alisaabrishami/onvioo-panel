@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, notExists } from "drizzle-orm";
 import { Download, FileVideo, File as FileIcon } from "lucide-react";
 import Link from "next/link";
 import { EmptyState } from "@/components/ui";
@@ -22,7 +22,9 @@ export async function FileList({ clientId, limit = 100 }: { clientId?: string; l
     .leftJoin(schema.users, eq(schema.users.id, schema.files.uploadedBy))
     .orderBy(desc(schema.files.createdAt))
     .limit(limit);
-  const rows = await (clientId ? query.where(eq(schema.files.clientId, clientId)) : query);
+  // Finance receipts stay in the finance pages, out of the team's file list
+  const notReceipt = notExists(db.select().from(schema.transactions).where(eq(schema.transactions.receiptFileId, schema.files.id)));
+  const rows = await query.where(clientId ? and(eq(schema.files.clientId, clientId), notReceipt) : notReceipt);
 
   if (rows.length === 0) return <EmptyState>هنوز فایلی آپلود نشده است.</EmptyState>;
 
@@ -51,7 +53,7 @@ export async function FileList({ clientId, limit = 100 }: { clientId?: string; l
             <a
               href={`/files/${f.id}/download`}
               title="دانلود"
-              className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-primary"
+              className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-primary"
             >
               <Download className="size-4" />
             </a>
