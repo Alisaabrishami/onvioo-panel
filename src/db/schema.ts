@@ -1,4 +1,5 @@
 import {
+  type AnyPgColumn,
   bigint,
   boolean,
   date,
@@ -7,6 +8,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  real,
   text,
   timestamp,
   uniqueIndex,
@@ -99,6 +101,10 @@ export const sessions = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    // Set for mobile API tokens, e.g. "iPhone 15"; null for browser sessions
+    device: text("device"),
+    // The browser or app's User-Agent at sign-in, to tell sessions apart
+    userAgent: text("user_agent"),
     createdAt: createdAt(),
   },
   (t) => [index("sessions_user_idx").on(t.userId)],
@@ -135,9 +141,11 @@ export const files = pgTable(
     kind: fileKindEnum("kind").notNull().default("other"),
     // Edit number within a content item: 1 for the first cut, 2 after changes…
     version: integer("version"),
+    // Set when the file is attached to a support ticket message
+    ticketMessageId: uuid("ticket_message_id").references((): AnyPgColumn => ticketMessages.id, { onDelete: "set null" }),
     createdAt: createdAt(),
   },
-  (t) => [index("files_client_idx").on(t.clientId), index("files_content_idx").on(t.contentId)],
+  (t) => [index("files_client_idx").on(t.clientId), index("files_content_idx").on(t.contentId), index("files_ticket_message_idx").on(t.ticketMessageId)],
 );
 
 export const auditLog = pgTable("audit_log", {
@@ -471,4 +479,468 @@ export const insights = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("insights_client_idx").on(t.clientId, t.kind), index("insights_content_idx").on(t.contentId)],
+);
+
+// --- Phase 4: team and finance -----------------------------------------
+
+export const leaveKindEnum = pgEnum("leave_kind", ["annual", "sick", "unpaid"]);
+export const requestStatusEnum = pgEnum("request_status", ["pending", "approved", "rejected"]);
+export const payslipStatusEnum = pgEnum("payslip_status", ["draft", "paid"]);
+export const accountKindEnum = pgEnum("account_kind", ["bank", "cash"]);
+export const directionEnum = pgEnum("direction", ["in", "out"]);
+export const financeCategoryEnum = pgEnum("finance_category", [
+  "client_payment",
+  "other_income",
+  "salary",
+  "rent",
+  "bills",
+  "software",
+  "equipment",
+  "ads",
+  "transport",
+  "other_expense",
+  "partner_draw",
+  "partner_contribution",
+]);
+export const importKindEnum = pgEnum("import_kind", ["bank_statement", "transactions"]);
+
+export type LeaveKind = (typeof leaveKindEnum.enumValues)[number];
+export type RequestStatus = (typeof requestStatusEnum.enumValues)[number];
+export type FinanceCategory = (typeof financeCategoryEnum.enumValues)[number];
+export type Direction = (typeof directionEnum.enumValues)[number];
+
+// One stretch of work; switching client closes one stretch and opens the next
+export const attendance = pgTable(
+  "attendance",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
+    clockIn: timestamp("clock_in", { withTimezone: true }).notNull(),
+    clockOut: timestamp("clock_out", { withTimezone: true }),
+    note: text("note"),
+    // Set when an admin corrected the times
+    editedBy: uuid("edited_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("attendance_user_idx").on(t.userId, t.clockIn)],
+);
+
+export const leaveRequests = pgTable(
+  "leave_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: leaveKindEnum("kind").notNull().default("annual"),
+    startsOn: date("starts_on").notNull(),
+    endsOn: date("ends_on").notNull(),
+    reason: text("reason"),
+    status: requestStatusEnum("status").notNull().default("pending"),
+    decidedBy: uuid("decided_by").references(() => users.id, { onDelete: "set null" }),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("leave_requests_user_idx").on(t.userId, t.startsOn)],
+);
+
+export const financeAccounts = pgTable("finance_accounts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  kind: accountKindEnum("kind").notNull().default("bank"),
+  // Toman; the balance on the day the panel's records start
+  openingBalance: bigint("opening_balance", { mode: "number" }).notNull().default(0),
+  // Bank statement column mapping remembered from the last import
+  importMapping: jsonb("import_mapping"),
+  // Reconciled and locked: transactions on or before this day can't change
+  lockedThrough: date("locked_through"),
+  active: boolean("active").notNull().default(true),
+  createdAt: createdAt(),
+});
+
+export const partners = pgTable("partners", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  // Share of profit in basis points (2500 = 25%)
+  shareBp: integer("share_bp").notNull().default(0),
+  openingBalance: bigint("opening_balance", { mode: "number" }).notNull().default(0),
+  createdAt: createdAt(),
+});
+
+export const importBatches = pgTable("import_batches", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  kind: importKindEnum("kind").notNull(),
+  accountId: uuid("account_id").references(() => financeAccounts.id, { onDelete: "cascade" }),
+  fileName: text("file_name").notNull(),
+  rows: integer("rows").notNull().default(0),
+  // The uploaded sheet, kept until the person maps its columns and confirms
+  pending: jsonb("pending").$type<string[][]>(),
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: createdAt(),
+});
+
+export const recurringExpenses = pgTable("recurring_expenses", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  category: financeCategoryEnum("category").notNull().default("rent"),
+  amount: bigint("amount", { mode: "number" }).notNull(),
+  accountId: uuid("account_id").references(() => financeAccounts.id, { onDelete: "set null" }),
+  // Jalali day of month it falls due
+  dueDay: integer("due_day").notNull().default(1),
+  active: boolean("active").notNull().default(true),
+  createdAt: createdAt(),
+});
+
+export const payslips = pgTable(
+  "payslips",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // Jalali month, e.g. "1405-07"
+    period: text("period").notNull(),
+    payType: payTypeEnum("pay_type").notNull(),
+    rate: bigint("rate", { mode: "number" }).notNull(),
+    workedMinutes: integer("worked_minutes").notNull().default(0),
+    items: integer("items").notNull().default(0),
+    base: bigint("base", { mode: "number" }).notNull().default(0),
+    overtime: bigint("overtime", { mode: "number" }).notNull().default(0),
+    bonus: bigint("bonus", { mode: "number" }).notNull().default(0),
+    deductions: bigint("deductions", { mode: "number" }).notNull().default(0),
+    net: bigint("net", { mode: "number" }).notNull().default(0),
+    note: text("note"),
+    status: payslipStatusEnum("status").notNull().default("draft"),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("payslips_user_period_idx").on(t.userId, t.period)],
+);
+
+export const transactions = pgTable(
+  "transactions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => financeAccounts.id, { onDelete: "restrict" }),
+    day: date("day").notNull(),
+    direction: directionEnum("direction").notNull(),
+    // Toman, always positive; direction says which way it moved
+    amount: bigint("amount", { mode: "number" }).notNull(),
+    category: financeCategoryEnum("category").notNull(),
+    description: text("description"),
+    // Bank tracking number, used when matching statement lines
+    reference: text("reference"),
+    clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
+    partnerId: uuid("partner_id").references(() => partners.id, { onDelete: "set null" }),
+    payslipId: uuid("payslip_id").references(() => payslips.id, { onDelete: "set null" }),
+    recurringId: uuid("recurring_id").references(() => recurringExpenses.id, { onDelete: "set null" }),
+    receiptFileId: uuid("receipt_file_id").references(() => files.id, { onDelete: "set null" }),
+    importBatchId: uuid("import_batch_id").references(() => importBatches.id, { onDelete: "cascade" }),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("transactions_account_day_idx").on(t.accountId, t.day),
+    index("transactions_client_idx").on(t.clientId),
+  ],
+);
+
+export const bankLines = pgTable(
+  "bank_lines",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => financeAccounts.id, { onDelete: "cascade" }),
+    importBatchId: uuid("import_batch_id")
+      .notNull()
+      .references(() => importBatches.id, { onDelete: "cascade" }),
+    day: date("day").notNull(),
+    // Signed toman: deposits positive, withdrawals negative
+    amount: bigint("amount", { mode: "number" }).notNull(),
+    description: text("description"),
+    reference: text("reference"),
+    balance: bigint("balance", { mode: "number" }),
+    // Same line imported twice (overlapping statements) is skipped
+    dedupeKey: text("dedupe_key").notNull(),
+    transactionId: uuid("transaction_id").references(() => transactions.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("bank_lines_dedupe_idx").on(t.accountId, t.dedupeKey),
+    index("bank_lines_account_day_idx").on(t.accountId, t.day),
+  ],
+);
+
+// --- Phase 5: invoices, CRM, site monitoring ------------------------------
+
+export const invoiceStatusEnum = pgEnum("invoice_status", ["draft", "sent", "paid", "cancelled"]);
+export const paymentStatusEnum = pgEnum("payment_status", ["pending", "paid", "failed"]);
+export const leadStageEnum = pgEnum("lead_stage", ["new", "contacted", "meeting", "proposal", "won", "lost"]);
+export const leadSourceEnum = pgEnum("lead_source", ["instagram", "referral", "website", "ads", "other"]);
+export const activityKindEnum = pgEnum("activity_kind", ["note", "call", "message", "meeting", "stage"]);
+
+export type InvoiceStatus = (typeof invoiceStatusEnum.enumValues)[number];
+export type LeadStage = (typeof leadStageEnum.enumValues)[number];
+export type LeadSource = (typeof leadSourceEnum.enumValues)[number];
+export type ActivityKind = (typeof activityKindEnum.enumValues)[number];
+export type InvoiceItem = { title: string; qty: number; unitPrice: number };
+
+export const invoices = pgTable(
+  "invoices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    // Shown on the invoice, e.g. ۱۰۲۴
+    number: integer("number").generatedAlwaysAsIdentity({ startWith: 1001 }),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "restrict" }),
+    contractId: uuid("contract_id").references(() => contracts.id, { onDelete: "set null" }),
+    title: text("title").notNull(),
+    items: jsonb("items").$type<InvoiceItem[]>().notNull(),
+    discount: bigint("discount", { mode: "number" }).notNull().default(0),
+    // Basis points of VAT, e.g. 1000 = 10%
+    taxBp: integer("tax_bp").notNull().default(0),
+    total: bigint("total", { mode: "number" }).notNull(),
+    issuedOn: date("issued_on").notNull(),
+    dueOn: date("due_on"),
+    status: invoiceStatusEnum("status").notNull().default("draft"),
+    note: text("note"),
+    // Unguessable link the client can pay from without logging in
+    payToken: text("pay_token").notNull(),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    remindedAt: timestamp("reminded_at", { withTimezone: true }),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    transactionId: uuid("transaction_id").references(() => transactions.id, { onDelete: "set null" }),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("invoices_client_idx").on(t.clientId), uniqueIndex("invoices_token_idx").on(t.payToken)],
+);
+
+// One attempt to pay an invoice online
+export const invoicePayments = pgTable(
+  "invoice_payments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    invoiceId: uuid("invoice_id")
+      .notNull()
+      .references(() => invoices.id, { onDelete: "cascade" }),
+    gateway: text("gateway").notNull(),
+    amount: bigint("amount", { mode: "number" }).notNull(),
+    authority: text("authority"),
+    refId: text("ref_id"),
+    cardPan: text("card_pan"),
+    status: paymentStatusEnum("status").notNull().default("pending"),
+    error: text("error"),
+    createdAt: createdAt(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (t) => [index("invoice_payments_invoice_idx").on(t.invoiceId), uniqueIndex("invoice_payments_authority_idx").on(t.authority)],
+);
+
+// Panel-wide settings, one row per key
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const leads = pgTable(
+  "leads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    business: text("business"),
+    phone: text("phone"),
+    instagram: text("instagram"),
+    source: leadSourceEnum("source").notNull().default("instagram"),
+    stage: leadStageEnum("stage").notNull().default("new"),
+    // Expected monthly deal size in toman
+    value: bigint("value", { mode: "number" }),
+    services: text("services"),
+    ownerId: uuid("owner_id").references(() => users.id, { onDelete: "set null" }),
+    nextFollowUp: date("next_follow_up"),
+    lostReason: text("lost_reason"),
+    clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("leads_stage_idx").on(t.stage), index("leads_follow_up_idx").on(t.nextFollowUp)],
+);
+
+export const leadActivities = pgTable(
+  "lead_activities",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    leadId: uuid("lead_id")
+      .notNull()
+      .references(() => leads.id, { onDelete: "cascade" }),
+    kind: activityKindEnum("kind").notNull(),
+    body: text("body").notNull(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("lead_activities_lead_idx").on(t.leadId, t.createdAt)],
+);
+
+// A client website the panel checks every few minutes
+export const monitors = pgTable(
+  "monitors",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+    url: text("url").notNull(),
+    // Text the page must contain, so a blank or hacked page counts as down
+    keyword: text("keyword"),
+    active: boolean("active").notNull().default(true),
+    up: boolean("up"),
+    lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
+    lastMs: integer("last_ms"),
+    downSince: timestamp("down_since", { withTimezone: true }),
+    sslExpiresAt: timestamp("ssl_expires_at", { withTimezone: true }),
+    domainExpiresOn: date("domain_expires_on"),
+    sslWarnedAt: timestamp("ssl_warned_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("monitors_client_idx").on(t.clientId)],
+);
+
+export const monitorChecks = pgTable(
+  "monitor_checks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    monitorId: uuid("monitor_id")
+      .notNull()
+      .references(() => monitors.id, { onDelete: "cascade" }),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+    ok: boolean("ok").notNull(),
+    status: integer("status"),
+    ms: integer("ms"),
+    error: text("error"),
+  },
+  (t) => [index("monitor_checks_monitor_idx").on(t.monitorId, t.at)],
+);
+
+// ---------- Phase 6: video AI (subtitles, clips) ----------
+
+export const videoJobKindEnum = pgEnum("video_job_kind", ["transcribe", "burn", "clip"]);
+export const jobStatusEnum = pgEnum("job_status", ["queued", "running", "done", "failed"]);
+
+export type VideoJobKind = (typeof videoJobKindEnum.enumValues)[number];
+export type JobStatus = (typeof jobStatusEnum.enumValues)[number];
+
+// One line of speech, times in seconds from the start of the video
+export type Segment = { start: number; end: number; text: string };
+
+// A highlight Claude picked from the transcript as a short vertical clip
+export type ClipIdea = { start: number; end: number; title: string; hook: string; reason: string; score: number };
+
+// Text spoken in a video file, edited by the team before it is burned in
+export const transcripts = pgTable("transcripts", {
+  fileId: uuid("file_id")
+    .primaryKey()
+    .references(() => files.id, { onDelete: "cascade" }),
+  language: text("language").notNull().default("fa"),
+  duration: real("duration"),
+  segments: jsonb("segments").$type<Segment[]>().notNull(),
+  clipIdeas: jsonb("clip_ideas").$type<ClipIdea[]>(),
+  editedBy: uuid("edited_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: createdAt(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Slow video work (speech to text, burning subtitles, cutting clips) runs
+// in the background, one job at a time, so a page never waits on ffmpeg
+export const videoJobs = pgTable(
+  "video_jobs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: videoJobKindEnum("kind").notNull(),
+    status: jobStatusEnum("status").notNull().default("queued"),
+    fileId: uuid("file_id")
+      .notNull()
+      .references(() => files.id, { onDelete: "cascade" }),
+    options: jsonb("options").$type<Record<string, unknown>>().notNull().default({}),
+    // The file or content the job produced
+    outputFileId: uuid("output_file_id").references(() => files.id, { onDelete: "set null" }),
+    outputContentId: uuid("output_content_id").references(() => contents.id, { onDelete: "set null" }),
+    error: text("error"),
+    attempts: integer("attempts").notNull().default(0),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (t) => [index("video_jobs_status_idx").on(t.status, t.createdAt), index("video_jobs_file_idx").on(t.fileId)],
+);
+
+// ---------- Phase 7: Bale/Telegram bot, monthly client reports ----------
+
+export const chatPlatformEnum = pgEnum("chat_platform", ["bale", "telegram"]);
+export type ChatPlatform = (typeof chatPlatformEnum.enumValues)[number];
+
+// What the bot is waiting for from this chat, e.g. the text of a change request
+export type ChatPending = { kind: "changes"; contentId: string } | null;
+
+// A panel login connected to a private chat with the bot
+export const chatLinks = pgTable(
+  "chat_links",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    platform: chatPlatformEnum("platform").notNull(),
+    chatId: text("chat_id").notNull(),
+    username: text("username"),
+    pending: jsonb("pending").$type<ChatPending>(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("chat_links_chat_idx").on(t.platform, t.chatId),
+    uniqueIndex("chat_links_user_idx").on(t.userId, t.platform),
+  ],
+);
+
+// Short one-time code a person sends to the bot to connect their chat
+export const chatLinkCodes = pgTable("chat_link_codes", {
+  code: text("code").primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
+
+// A client's month in numbers plus an AI summary; drafted automatically,
+// visible in the portal once the team sends it
+export const monthlyReports = pgTable(
+  "monthly_reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    // Jalali month, "1405-07"
+    period: text("period").notNull(),
+    data: jsonb("data").notNull(),
+    // Optional note from the team, shown at the top of the report
+    note: text("note"),
+    sharedAt: timestamp("shared_at", { withTimezone: true }),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("monthly_reports_client_period_idx").on(t.clientId, t.period)],
 );

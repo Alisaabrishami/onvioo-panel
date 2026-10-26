@@ -16,7 +16,7 @@ export async function NotificationList({ userId }: { userId: string }) {
           <button type="submit" className="text-sm text-primary hover:underline">همه را خوانده‌شده کن</button>
         </form>
       )}
-      <ul className="divide-y divide-border rounded-xl border border-border bg-surface">
+      <ul className="divide-y divide-border glass rounded-3xl">
         {rows.map((n) => {
           const inner = (
             <>

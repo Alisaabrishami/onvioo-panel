@@ -37,7 +37,7 @@ export default async function ReportPage(props: PageProps<"/growth/[clientId]/re
                 <Badge tone="success">برای مشتری ارسال شد</Badge>
               ) : (
                 <form action={shareReport.bind(null, clientId, id)}>
-                  <button type="submit" className="h-10 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">ارسال برای مشتری</button>
+                  <button type="submit" className="h-10 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-glow transition-[filter,transform] hover:brightness-105 active:scale-[0.97]">ارسال برای مشتری</button>
                 </form>
               )}
               <PrintButton />

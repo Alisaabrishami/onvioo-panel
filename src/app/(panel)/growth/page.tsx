@@ -41,14 +41,14 @@ export default async function GrowthPage() {
     <>
       <PageHeader title="رشد پیج‌ها" description="فالوور، بازدید، پیش‌بینی و تحلیل هوش مصنوعی هر مشتری" />
       {!aiConfigured() && (
-        <p className="mb-4 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+        <p className="mb-4 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
           تحلیل‌های هوش مصنوعی بعد از قرار دادن کلید Claude روی سرور فعال می‌شوند؛ نمودارها و پیش‌بینی همین حالا کار می‌کنند.
         </p>
       )}
       {rows.length === 0 ? (
         <EmptyState>هنوز مشتری فعالی ثبت نشده است.</EmptyState>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+        <div className="overflow-hidden glass rounded-3xl">
           <table className="w-full text-sm">
             <thead className="bg-muted/60 text-xs text-muted-foreground">
               <tr>

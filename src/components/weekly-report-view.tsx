@@ -25,7 +25,7 @@ export function WeeklyReportView({ report }: { report: WeeklyReport }) {
           <h3 className="mb-2 text-sm font-semibold">بهترین محتواهای هفته</h3>
           <ol className="space-y-1.5 text-sm">
             {stats.topPosts.map((p, i) => (
-              <li key={i} className="flex items-center justify-between gap-3 rounded-lg bg-muted/60 px-3 py-2">
+              <li key={i} className="flex items-center justify-between gap-3 rounded-xl bg-muted/60 px-3 py-2">
                 <span className="truncate">{p.caption || "بدون کپشن"}</span>
                 <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
                   {compact(p.views)} بازدید
@@ -46,7 +46,7 @@ export function WeeklyReportView({ report }: { report: WeeklyReport }) {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-border p-3">
+    <div className="rounded-xl border border-border p-3">
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="mt-1 text-lg font-bold">{value}</dd>
     </div>

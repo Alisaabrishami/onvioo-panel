@@ -1,10 +1,10 @@
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { CheckCircle2, Circle, ExternalLink } from "lucide-react";
 import type { Metadata } from "next";
-import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
+import { Badge, Card, EmptyState, PageHeader, StatusDot } from "@/components/ui";
 import { db, schema } from "@/db";
 import { requireClient } from "@/lib/auth/dal";
-import { formatIsoDate } from "@/lib/format";
+import { formatIsoDate, formatJalaliDateTime, toPersianDigits } from "@/lib/format";
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_TONES, SERVICE_KIND_LABELS, progressOf } from "@/lib/services";
 import { ProgressBar } from "@/components/progress-bar";
 
@@ -24,10 +24,42 @@ export default async function PortalProjectsPage() {
         .where(inArray(schema.milestones.projectId, projects.map((p) => p.id)))
         .orderBy(asc(schema.milestones.position))
     : [];
+  const monitors = await db
+    .select()
+    .from(schema.monitors)
+    .where(and(eq(schema.monitors.clientId, user.clientId), eq(schema.monitors.active, true)));
+  const uptime = monitors.length
+    ? await db
+        .select({ id: schema.monitorChecks.monitorId, total: sql<number>`count(*)::int`, ok: sql<number>`count(*) filter (where ${schema.monitorChecks.ok})::int` })
+        .from(schema.monitorChecks)
+        .where(and(inArray(schema.monitorChecks.monitorId, monitors.map((m) => m.id)), sql`${schema.monitorChecks.at} >= now() - interval '30 days'`))
+        .groupBy(schema.monitorChecks.monitorId)
+    : [];
 
   return (
     <>
       <PageHeader title="سایت و خدمات وب" description="پیشرفت پروژه‌های سایت، سئو و پشتیبانی" />
+      {monitors.length > 0 && (
+        <Card className="mb-4 space-y-3">
+          <h2 className="font-semibold">وضعیت سایت</h2>
+          {monitors.map((m) => {
+            const u = uptime.find((x) => x.id === m.id);
+            return (
+              <div key={m.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <span className="flex items-center gap-2">
+                  <StatusDot live={m.up !== false} className={m.up === false ? "text-danger" : "text-success"} />
+                  <span dir="ltr">{new URL(m.url).hostname}</span>
+                  <span className="text-muted-foreground">{m.up === false ? "در حال بررسی توسط تیم" : "در دسترس"}</span>
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {u?.total ? `در دسترس ${toPersianDigits((Math.floor((u.ok / u.total) * 1000) / 10).toString())}٪ در ۳۰ روز` : ""}
+                  {m.lastCheckedAt && ` · آخرین بررسی ${formatJalaliDateTime(m.lastCheckedAt)}`}
+                </span>
+              </div>
+            );
+          })}
+        </Card>
+      )}
       {projects.length === 0 ? (
         <EmptyState>پروژه سایتی برای شما ثبت نشده است.</EmptyState>
       ) : (

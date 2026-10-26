@@ -97,7 +97,7 @@ export default async function PortalGrowthPage() {
 
 function Stat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
+    <div className="glass rounded-3xl p-4">
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="mt-1 text-xl font-bold">{value}</dd>
     </div>
