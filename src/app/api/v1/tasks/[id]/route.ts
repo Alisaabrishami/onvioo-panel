@@ -4,6 +4,7 @@ import * as z from "zod";
 import { db, schema } from "@/db";
 import { audit } from "@/lib/audit";
 import { TEAM, authed, body, idParam, notFound } from "@/lib/api/http";
+import { followedTaskDone } from "@/lib/follow-up-run";
 
 // Same rule as the panel: any team member can move any task
 export const PATCH = authed<RouteContext<"/api/v1/tasks/[id]">>(async (user, request, ctx) => {
@@ -16,6 +17,7 @@ export const PATCH = authed<RouteContext<"/api/v1/tasks/[id]">>(async (user, req
     .returning();
   if (!task) throw notFound();
   await audit(user.id, "status", "task", id, { status, via: "api" });
+  if (status === "done") await followedTaskDone(id, user.id, "api");
   revalidatePath("/tasks");
   revalidatePath("/dashboard");
   return task;

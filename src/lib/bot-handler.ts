@@ -17,6 +17,8 @@ import { NOT_LINKED, allowed, callback, formatDuration, helpText, menuFor, norma
 import { approveAsClient, ownContent, requestChangesAsClient } from "./client-review";
 import { STAGE_LABELS } from "./content";
 import { isUuid } from "./data";
+import { ANSWER_LABELS } from "./follow-up";
+import { type CheckinAnswer, answerCheckin } from "./follow-up-run";
 import { formatJalaliDate, formatTime, formatToman, toPersianDigits } from "./format";
 import { invoiceLabel } from "./invoices-data";
 import { appUrl } from "./payment";
@@ -84,6 +86,7 @@ export async function handleUpdate(platform: ChatPlatform, update: Update): Prom
     return runCommand(platform, chatId, member, parsed.command);
   }
   if (member.pending?.kind === "changes") return takeChangeRequest(platform, chatId, member, member.pending.contentId, msg.text);
+  if (member.pending?.kind === "blocked") return takeBlocker(platform, chatId, member, member.pending.taskId, msg.text);
   return reply({ text: "متوجه نشدم. از دکمه‌های پایین صفحه استفاده کنید یا «راهنما» را بزنید.", menu: menuFor(member.role) });
 }
 
@@ -131,6 +134,16 @@ async function handleCallback(platform: ChatPlatform, query: NonNullable<Update[
     const done = isUuid(action.id) ? await completeTask(member.id, action.id, "bot") : null;
     await answer(done ? `انجام شد: ${shorten(done.title, 40)}` : "این کار قبلاً بسته شده است");
     return edit(await taskList(member.id));
+  }
+  // Answers to the assistant's follow-up question
+  const checkin = ({ fd: "done", fo: "on_track", fb: "blocked" } as const)[action.verb as "fd" | "fo" | "fb"] as CheckinAnswer | undefined;
+  if (checkin && member.role !== "client") {
+    const task = isUuid(action.id) ? await answerCheckin(member.id, action.id, checkin, { via: "bot", tellManager: checkin !== "blocked" }) : null;
+    if (!task) return void (await answer("این کار بسته شده یا دیگر با شما نیست"));
+    await answer(`${ANSWER_LABELS[checkin]}: ${shorten(task.title, 40)}`);
+    if (checkin !== "blocked") return sendChat(platform, chatId, { text: `ثبت شد ✓ «${task.title}» · ${ANSWER_LABELS[checkin]}` });
+    await setPending(member.linkId, { kind: "blocked", taskId: action.id });
+    return sendChat(platform, chatId, { text: `در «${task.title}» چه چیزی مانع کارتان است یا از مدیر چه کمکی لازم دارید؟ بنویسید تا برسانم.\nبرای لغو «انصراف» را بفرستید.` });
   }
   if (action.verb === "ci" && member.role !== "client") {
     const text = await clockInNow(member.id, action.id === "-" ? null : action.id);
@@ -262,6 +275,15 @@ async function takeChangeRequest(platform: ChatPlatform, chatId: string, member:
   const body = text.trim().slice(0, 2000);
   await requestChangesAsClient({ id: member.id, name: member.name, clientId: member.clientId! }, content, body, timecodeIn(body));
   return sendChat(platform, chatId, { text: `✏️ اصلاحیه «${content.title}» برای تیم فرستاده شد. نسخه جدید که آماده شد خبرتان می‌کنیم.`, menu: menuFor(member.role) });
+}
+
+async function takeBlocker(platform: ChatPlatform, chatId: string, member: Member, taskId: string, text: string): Promise<void> {
+  await setPending(member.linkId, null);
+  const task = await answerCheckin(member.id, taskId, "blocked", { note: text, via: "bot" });
+  return sendChat(platform, chatId, {
+    text: task ? `📨 به مدیر گفتم که در «${task.title}» گیر کرده‌اید.` : "این کار دیگر باز نیست یا با شما نیست.",
+    menu: menuFor(member.role),
+  });
 }
 
 async function openInvoices(clientId: string): Promise<ChatMessage> {

@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, gte, ne, type SQL, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import type { Metadata } from "next";
+import { Bot } from "lucide-react";
 import Link from "next/link";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { db, schema } from "@/db";
@@ -32,6 +33,7 @@ export default async function TasksPage(props: PageProps<"/tasks">) {
   }
 
   const assignee = alias(schema.users, "assignee");
+  const manager = alias(schema.users, "manager");
   const [rows, team, clients] = await Promise.all([
     db
       .select({
@@ -43,12 +45,18 @@ export default async function TasksPage(props: PageProps<"/tasks">) {
         autoKey: schema.tasks.autoKey,
         contentId: schema.tasks.contentId,
         createdBy: schema.tasks.createdBy,
+        assigneeId: schema.tasks.assigneeId,
+        followUpBy: schema.tasks.followUpBy,
+        checkin: schema.tasks.checkin,
+        checkinNote: schema.tasks.checkinNote,
         clientName: schema.clients.name,
         assigneeName: assignee.name,
+        managerName: manager.name,
       })
       .from(schema.tasks)
       .leftJoin(schema.clients, eq(schema.clients.id, schema.tasks.clientId))
       .leftJoin(assignee, eq(assignee.id, schema.tasks.assigneeId))
+      .leftJoin(manager, eq(manager.id, schema.tasks.followUpBy))
       .where(and(...filters))
       .orderBy(
         ...(view === "done"
@@ -76,6 +84,10 @@ export default async function TasksPage(props: PageProps<"/tasks">) {
     assigneeName: view === "mine" ? null : t.assigneeName,
     late: t.status !== "done" && isOverdue(t.dueAt, now),
     canDelete: user.role === "admin" || (t.autoKey === null && t.createdBy === user.id),
+    followUp: t.followUpBy ? { manager: t.managerName, checkin: t.checkin, note: t.checkinNote } : null,
+    mine: t.assigneeId === user.id,
+    canFollowUp: user.role === "admin",
+    hasAssignee: t.assigneeId !== null,
   }));
   const late = items.filter((t) => t.late).length;
 
@@ -90,7 +102,7 @@ export default async function TasksPage(props: PageProps<"/tasks">) {
         }
       />
       <Card className="mb-6">
-        <TaskForm team={team} clients={clients} me={user.id} />
+        <TaskForm team={team} clients={clients} me={user.id} canFollowUp={user.role === "admin"} />
       </Card>
       <div className="mb-3 flex gap-1 text-sm">
         {(Object.keys(VIEWS) as View[]).map((v) => (
@@ -102,6 +114,12 @@ export default async function TasksPage(props: PageProps<"/tasks">) {
             {VIEWS[v]}
           </Link>
         ))}
+        {user.role === "admin" && (
+          <Link href="/tasks/follow-up" className="ms-auto flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-primary hover:bg-muted">
+            <Bot className="size-4" />
+            پیگیری‌های دستیار
+          </Link>
+        )}
       </div>
       {items.length === 0 ? (
         <EmptyState>{view === "done" ? "در ۳۰ روز گذشته کاری تمام نشده است." : "کار بازی نمانده است 🎉"}</EmptyState>
